@@ -12,3 +12,112 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+model User {
+  id         String       @id @default(cuid()) @db.VarChar(100)
+  userName   String       @unique @db.VarChar(20) @map("user_name")
+  password   String       @db.VarChar(100)
+  disabled   Boolean      @default(false)
+  deleted    Boolean      @default(false)
+  createdAt  DateTime     @default(now()) @map("created_at")
+  updatedAt  DateTime     @updatedAt @map("updated_at")
+
+  profile    Profile?
+  roleInUser RoleInUser[]
+
+  @@map("users")
+}
+
+enum Gender {
+  MA
+  FE
+  OT
+}
+
+model Profile {
+  id          Int       @id @default(autoincrement()) @db.Integer
+  nickName    String?   @db.VarChar(50) @map("nick_name")
+  avatar      String?   @db.VarChar(255)
+  email       String?   @unique @db.VarChar(50)
+  phone       String?   @unique @db.VarChar(20)
+  gender      Gender    @default(OT)
+  birthday    DateTime?
+  description String?   @db.VarChar(150)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  userId String @unique @map("user_id")
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@map("profiles")
+}
+
+model Role {
+  id          Int      @id @default(autoincrement()) @db.SmallInt
+  name        String   @unique @db.VarChar(50)
+  description String?  @db.VarChar(150)
+  disabled    Boolean  @default(false)
+  deleted     Boolean  @default(false)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  roleInUser       RoleInUser[]
+  permissionInRole PermissionInRole[]
+
+  @@map("roles")
+}
+
+model RoleInUser {
+  roleId Int  @map("role_id")
+  roles  Role @relation(fields: [roleId], references: [id])
+
+  userId String @map("user_id")
+  users  User   @relation(fields: [userId], references: [id])
+
+  @@id([roleId, userId])
+  @@map("role_in_user")
+}
+
+enum Type {
+  DIRECTORY
+  MENU
+  BUTTON
+}
+
+model Permission {
+  id               Int                @id @default(autoincrement()) @db.SmallInt
+  type             Type               @default(MENU)
+  name             String             @unique @db.VarChar(50)
+  permission       String?            @unique @db.VarChar(50)
+  icon             String?            @db.VarChar(50)
+  path             String?            @db.VarChar(50)
+  component        String?            @db.VarChar(150)
+  sort             Int                @default(0) @db.SmallInt
+  redirect         String?            @db.VarChar(100)
+  disabled         Boolean            @default(false)
+  hidden           Boolean            @default(false)
+  cache            Boolean            @default(false)
+  props            Boolean            @default(false)
+  deleted          Boolean            @default(false)
+  createdAt        DateTime           @default(now()) @map("created_at")
+  updatedAt        DateTime           @updatedAt @map("updated_at")
+  
+  pid              Int?               @db.SmallInt
+  parent           Permission?        @relation("ParentToChildren", fields: [pid], references: [id])
+  children         Permission[]       @relation("ParentToChildren")
+  
+  permissionInRole PermissionInRole[]
+
+  @@map("permissions")
+}
+
+model PermissionInRole {
+  permissionId Int        @map("permission_id")
+  permissions  Permission @relation(fields: [permissionId], references: [id])
+  
+  roleId Int  @map("role_id")
+  roles  Role @relation(fields: [roleId], references: [id])
+  
+  @@id([roleId, permissionId])
+  @@map("role_in_permission")
+}

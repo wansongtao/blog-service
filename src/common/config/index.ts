@@ -11,4 +11,9 @@ export const getBaseConfig = (configService: ConfigService) => ({
   db: {
     url: configService.get<string>('DATABASE_URL'),
   },
+  swagger: {
+    title: configService.get<string>('SWAGGER_TITLE'),
+    description: configService.get<string>('SWAGGER_DESCRIPTION'),
+    version: configService.get<string>('SWAGGER_VERSION'),
+  },
 });

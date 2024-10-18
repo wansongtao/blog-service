@@ -16,4 +16,11 @@ export const getBaseConfig = (configService: ConfigService) => ({
     description: configService.get<string>('SWAGGER_DESCRIPTION'),
     version: configService.get<string>('SWAGGER_VERSION'),
   },
+  winston: {
+    logLevel: configService.get<string>('LOG_LEVEL'),
+    logDir: configService.get<string>('LOG_DIR'),
+    logMaxSize: configService.get<string>('LOG_MAX_SIZE'),
+    logMaxFiles: configService.get<string>('LOG_MAX_FILES'),
+    logDatePattern: configService.get<string>('LOG_DATE_PATTERN'),
+  },
 });

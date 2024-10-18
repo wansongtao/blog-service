@@ -4,6 +4,10 @@ import { AppService } from './app.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { PrismaModule } from 'nestjs-prisma';
 import { getBaseConfig } from './common/config';
+import { WinstonModule, utilities } from 'nest-winston';
+import winston from 'winston';
+import DailyRotateFile from 'winston-daily-rotate-file';
+import { join } from 'path';
 
 @Module({
   imports: [
@@ -24,6 +28,67 @@ import { getBaseConfig } from './common/config';
             },
           },
           explicitConnect: false,
+        };
+      },
+      inject: [ConfigService],
+    }),
+    WinstonModule.forRootAsync({
+      useFactory: (configService: ConfigService) => {
+        const config = getBaseConfig(configService);
+        const logLevel = config.winston.logLevel;
+        const logDir = config.winston.logDir;
+        const maxSize = config.winston.logMaxSize;
+        const maxFiles = config.winston.logMaxFiles;
+        const datePattern = config.winston.logDatePattern;
+
+        return {
+          level: logLevel,
+          format: winston.format.combine(
+            winston.format.timestamp(),
+            winston.format.ms(),
+            utilities.format.nestLike('MyApp', {
+              prettyPrint: true,
+              colors: true,
+            }),
+            winston.format.errors({ stack: true }),
+          ),
+          transports: [
+            new winston.transports.Console({
+              level: 'error',
+              format: winston.format.combine(
+                winston.format.timestamp(),
+                utilities.format.nestLike(),
+              ),
+            }),
+            new DailyRotateFile({
+              dirname: join(logDir, logLevel),
+              filename: 'application-%DATE%.log',
+              datePattern,
+              zippedArchive: true,
+              maxSize,
+              maxFiles,
+              level: logLevel,
+            }),
+            new DailyRotateFile({
+              dirname: join(logDir, 'error'),
+              filename: 'error-%DATE%.log',
+              datePattern,
+              zippedArchive: true,
+              maxSize,
+              maxFiles,
+              level: 'error',
+            }),
+          ],
+          exceptionHandlers: [
+            new DailyRotateFile({
+              dirname: join(logDir, 'exceptions'),
+              filename: 'exceptions-%DATE%.log',
+              datePattern,
+              zippedArchive: true,
+              maxSize,
+              maxFiles,
+            }),
+          ],
         };
       },
       inject: [ConfigService],

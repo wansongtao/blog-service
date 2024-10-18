@@ -14,7 +14,7 @@ datasource db {
 }
 
 model User {
-  id         String       @id @default(cuid()) @db.VarChar(100)
+  id         String       @id @default(cuid()) @db.VarChar(50)
   userName   String       @unique @db.VarChar(20) @map("user_name")
   password   String       @db.VarChar(100)
   disabled   Boolean      @default(false)

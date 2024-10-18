@@ -20,6 +20,7 @@
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "migrate:dev": "dotenv -e .env.development -- npx prisma migrate dev --name init",
     "prisma:generate": "npx prisma generate",
+    "migrate:dev:create": "dotenv -e .env.development -- npx prisma migrate dev --create-only",
     "prisma:seed": "dotenv -e .env.development -- npx prisma db seed"
   },
   "dependencies": {

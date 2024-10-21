@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 export const getBaseConfig = (configService: ConfigService) => ({
   env: configService.get<string>('NODE_ENV'),
   port: +configService.get<number>('PORT', 3000),
+  prefix: configService.get<string>('PREFIX'),
   bcryptSaltRounds: +configService.get<number>('BCRYPT_SALT_ROUNDS', 10),
   defaultUser: {
     username: configService.get<string>('DEFAULT_ADMIN_USERNAME'),

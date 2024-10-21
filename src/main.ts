@@ -11,6 +11,8 @@ async function bootstrap() {
 
   const config = getBaseConfig(app.get(ConfigService));
 
+  app.setGlobalPrefix(config.prefix);
+
   const title = config.swagger.title;
   const description = config.swagger.description;
   const version = config.swagger.version;

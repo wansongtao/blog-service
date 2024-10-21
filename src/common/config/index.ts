@@ -24,4 +24,7 @@ export const getBaseConfig = (configService: ConfigService) => ({
     logMaxFiles: configService.get<string>('LOG_MAX_FILES'),
     logDatePattern: configService.get<string>('LOG_DATE_PATTERN'),
   },
+  redis: {
+    url: configService.get<string>('REDIS_URL'),
+  },
 });

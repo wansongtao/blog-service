@@ -12,5 +12,13 @@ services:
     ports:
       - '${DB_PORT:-5432}:5432'
 
+  redis:
+    image: redis:latest
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+
 volumes:
   postgres_blog:
+  redis_data:

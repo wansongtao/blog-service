@@ -1,6 +1,4 @@
 import { Module } from '@nestjs/common';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { PrismaModule } from 'nestjs-prisma';
 import { getBaseConfig } from './common/config';
@@ -8,6 +6,7 @@ import { WinstonModule, utilities } from 'nest-winston';
 import winston from 'winston';
 import DailyRotateFile from 'winston-daily-rotate-file';
 import { join } from 'path';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -93,8 +92,8 @@ import { join } from 'path';
       },
       inject: [ConfigService],
     }),
+    AuthModule,
   ],
-  controllers: [AppController],
-  providers: [AppService],
+  providers: [],
 })
 export class AppModule {}

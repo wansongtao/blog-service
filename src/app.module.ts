@@ -7,6 +7,7 @@ import winston from 'winston';
 import DailyRotateFile from 'winston-daily-rotate-file';
 import { join } from 'path';
 import { AuthModule } from './auth/auth.module';
+import { RedisModule } from '@nestjs-modules/ioredis';
 
 @Module({
   imports: [
@@ -90,6 +91,13 @@ import { AuthModule } from './auth/auth.module';
           ],
         };
       },
+      inject: [ConfigService],
+    }),
+    RedisModule.forRootAsync({
+      useFactory: (configService: ConfigService) => ({
+        type: 'single',
+        url: getBaseConfig(configService).redis.url,
+      }),
       inject: [ConfigService],
     }),
     AuthModule,

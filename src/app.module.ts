@@ -2,12 +2,18 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { PrismaModule } from 'nestjs-prisma';
 import { getBaseConfig } from './common/config';
-import { WinstonModule, utilities } from 'nest-winston';
+import {
+  WinstonModule,
+  type WinstonModuleOptions,
+  utilities,
+} from 'nest-winston';
 import winston from 'winston';
 import DailyRotateFile from 'winston-daily-rotate-file';
 import { join } from 'path';
 import { AuthModule } from './auth/auth.module';
 import { RedisModule } from '@nestjs-modules/ioredis';
+import { BaseResponseInterceptor } from 'src/common/interceptor/base-response.interceptor';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 
 @Module({
   imports: [
@@ -41,6 +47,46 @@ import { RedisModule } from '@nestjs-modules/ioredis';
         const maxFiles = config.winston.logMaxFiles;
         const datePattern = config.winston.logDatePattern;
 
+        const transports: WinstonModuleOptions['transports'] = [
+          new DailyRotateFile({
+            dirname: join(logDir, logLevel),
+            filename: 'application-%DATE%.log',
+            datePattern,
+            zippedArchive: true,
+            maxSize,
+            maxFiles,
+            format: winston.format.combine(
+              winston.format((info) => {
+                if (info.level === 'error') {
+                  return false;
+                }
+                return info;
+              })(),
+            ),
+          }),
+          new DailyRotateFile({
+            dirname: join(logDir, 'error'),
+            filename: 'error-%DATE%.log',
+            datePattern,
+            zippedArchive: true,
+            maxSize,
+            maxFiles,
+            level: 'error',
+          }),
+        ];
+
+        if (config.env !== 'production') {
+          transports.push(
+            new winston.transports.Console({
+              level: 'error',
+              format: winston.format.combine(
+                winston.format.timestamp(),
+                utilities.format.nestLike(),
+              ),
+            }),
+          );
+        }
+
         return {
           level: logLevel,
           format: winston.format.combine(
@@ -52,33 +98,7 @@ import { RedisModule } from '@nestjs-modules/ioredis';
             }),
             winston.format.errors({ stack: true }),
           ),
-          transports: [
-            new winston.transports.Console({
-              level: 'error',
-              format: winston.format.combine(
-                winston.format.timestamp(),
-                utilities.format.nestLike(),
-              ),
-            }),
-            new DailyRotateFile({
-              dirname: join(logDir, logLevel),
-              filename: 'application-%DATE%.log',
-              datePattern,
-              zippedArchive: true,
-              maxSize,
-              maxFiles,
-              level: logLevel,
-            }),
-            new DailyRotateFile({
-              dirname: join(logDir, 'error'),
-              filename: 'error-%DATE%.log',
-              datePattern,
-              zippedArchive: true,
-              maxSize,
-              maxFiles,
-              level: 'error',
-            }),
-          ],
+          transports,
           exceptionHandlers: [
             new DailyRotateFile({
               dirname: join(logDir, 'exceptions'),
@@ -102,6 +122,11 @@ import { RedisModule } from '@nestjs-modules/ioredis';
     }),
     AuthModule,
   ],
-  providers: [],
+  providers: [
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: BaseResponseInterceptor,
+    },
+  ],
 })
 export class AppModule {}

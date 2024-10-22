@@ -1,7 +1,7 @@
 import { Controller, Get, Ip, Headers } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { ApiOkResponse, ApiOperation } from '@nestjs/swagger';
-
+import { ApiOperation } from '@nestjs/swagger';
+import { ApiBaseResponse } from 'src/common/decorator/api-base-response.decorator';
 import { AuthEntity } from './entities/auth.entity';
 
 @Controller('auth')
@@ -11,9 +11,7 @@ export class AuthController {
   @ApiOperation({
     summary: '获取验证码',
   })
-  @ApiOkResponse({
-    type: AuthEntity,
-  })
+  @ApiBaseResponse(AuthEntity)
   @Get('captcha')
   getCaptcha(
     @Ip() ip: string,

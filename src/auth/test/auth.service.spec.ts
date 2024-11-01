@@ -1,7 +1,7 @@
 import { TestBed } from '@automock/jest';
-import { AuthService } from './auth.service';
+import { AuthService } from '../auth.service';
 import Redis from 'ioredis';
-import * as svgCaptcha from 'svg-captcha';
+import svgCaptcha from 'svg-captcha';
 import { getCaptchaKey } from 'src/common/config/redis-key';
 import { getBaseConfig } from 'src/common/config';
 
@@ -26,7 +26,7 @@ describe('AuthService Unit Test', () => {
     const { unit, unitRef } = TestBed.create(AuthService).compile();
 
     authService = unit;
-    // 获取被注入的 Redis 模拟实例
+    // 获取被注入的 Redis 模拟实例，使用 InjectRedis 注入的 redis 的 key 固定为 default_IORedisModuleConnectionToken
     redis = unitRef.get('default_IORedisModuleConnectionToken');
   });
 
@@ -53,7 +53,7 @@ describe('AuthService Unit Test', () => {
       // 调用被测试方法
       const result = authService.generateCaptcha(mockIp, mockUserAgent);
 
-      // 验证 svg-captcha 调用参数
+      // 验证 svg-captcha 的 create 方法调用参数
       expect(svgCaptcha.create).toHaveBeenCalledWith({
         size: 4,
         noise: 2,
@@ -62,7 +62,7 @@ describe('AuthService Unit Test', () => {
         background: '#f0f0f0',
       });
 
-      // 验证 redis key 生成方法调用参数
+      // 验证 getCaptchaKey 方法调用参数
       expect(getCaptchaKey).toHaveBeenCalledWith(mockIp, mockUserAgent);
 
       // 验证 redis 存储方法调用参数

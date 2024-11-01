@@ -1,7 +1,7 @@
 import { TestBed } from '@automock/jest';
-import { AuthController } from './auth.controller';
-import { AuthService } from './auth.service';
-import { AuthEntity } from './entities/auth.entity';
+import { AuthController } from '../auth.controller';
+import { AuthService } from '../auth.service';
+import { AuthEntity } from '../entities/auth.entity';
 
 describe('AuthController Unit Test', () => {
   let authController: AuthController;

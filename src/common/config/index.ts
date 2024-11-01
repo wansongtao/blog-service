@@ -28,4 +28,11 @@ export const getBaseConfig = (configService: ConfigService) => ({
   redis: {
     url: configService.get<string>('REDIS_URL'),
   },
+  jwt: {
+    algorithm: configService.get<string>('JWT_ALGORITHM'),
+    publicKeyPath: configService.get<string>('JWT_PUBLIC_KEY_PATH'),
+    privateKeyPath: configService.get<string>('JWT_PRIVATE_KEY_PATH'),
+    expiresIn: configService.get<string>('JWT_EXPIRES_IN'),
+    refreshTokenIn: configService.get<string>('JWT_REFRESH_TOKEN_EXPIRES_IN'),
+  },
 });

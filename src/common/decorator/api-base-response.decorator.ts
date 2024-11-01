@@ -23,12 +23,9 @@ export const ApiBaseResponse = <TModel extends Type<any>>(
             properties: {
               data: {
                 type: type,
-                $ref:
-                  type === 'object' && model ? getSchemaPath(model) : undefined,
+                $ref: type === 'object' ? getSchemaPath(model) : undefined,
                 items:
-                  type === 'array' && model
-                    ? { $ref: getSchemaPath(model) }
-                    : undefined,
+                  type === 'array' ? { $ref: getSchemaPath(model) } : undefined,
               },
             },
           },

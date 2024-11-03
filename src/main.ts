@@ -4,10 +4,12 @@ import { ConfigService } from '@nestjs/config';
 import { getBaseConfig } from './common/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
+import { ValidationPipe } from '@nestjs/common';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.useLogger(app.get(WINSTON_MODULE_NEST_PROVIDER));
+  app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
 
   const config = getBaseConfig(app.get(ConfigService));
 

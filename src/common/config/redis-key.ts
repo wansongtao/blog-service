@@ -5,3 +5,5 @@ export const getCaptchaKey = (ip: string, userAgent: string) => {
   const key = createHash('sha256').update(data).digest('hex');
   return `captcha:${key}`;
 };
+
+export const getSSOKey = (userName: string) => `sso:${userName}`;

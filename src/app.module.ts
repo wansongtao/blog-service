@@ -14,6 +14,7 @@ import { AuthModule } from './auth/auth.module';
 import { RedisModule } from '@nestjs-modules/ioredis';
 import { BaseResponseInterceptor } from 'src/common/interceptor/base-response.interceptor';
 import { APP_INTERCEPTOR } from '@nestjs/core';
+import { UserModule } from './user/user.module';
 
 @Module({
   imports: [
@@ -121,6 +122,7 @@ import { APP_INTERCEPTOR } from '@nestjs/core';
       inject: [ConfigService],
     }),
     AuthModule,
+    UserModule,
   ],
   providers: [
     {

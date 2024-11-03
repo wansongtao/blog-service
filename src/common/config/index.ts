@@ -1,4 +1,5 @@
 import { ConfigService } from '@nestjs/config';
+import type { JwtSignOptions } from '@nestjs/jwt';
 
 export const getBaseConfig = (configService: ConfigService) => ({
   env: configService.get<string>('NODE_ENV'),
@@ -29,7 +30,9 @@ export const getBaseConfig = (configService: ConfigService) => ({
     url: configService.get<string>('REDIS_URL'),
   },
   jwt: {
-    algorithm: configService.get<string>('JWT_ALGORITHM'),
+    algorithm: configService.get(
+      'JWT_ALGORITHM',
+    ) as JwtSignOptions['algorithm'],
     publicKeyPath: configService.get<string>('JWT_PUBLIC_KEY_PATH'),
     privateKeyPath: configService.get<string>('JWT_PRIVATE_KEY_PATH'),
     expiresIn: configService.get<string>('JWT_EXPIRES_IN'),

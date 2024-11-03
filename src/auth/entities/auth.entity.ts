@@ -7,3 +7,11 @@ export class AuthEntity {
   })
   captcha: string;
 }
+
+export class LoginEntity {
+  @ApiProperty({ description: '认证身份 token' })
+  token: string;
+
+  @ApiProperty({ description: '用来刷新 token 的凭证' })
+  refreshToken: string;
+}

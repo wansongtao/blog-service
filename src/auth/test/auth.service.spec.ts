@@ -1,60 +1,71 @@
 import { TestBed } from '@automock/jest';
 import { AuthService } from '../auth.service';
-import Redis from 'ioredis';
-import svgCaptcha from 'svg-captcha';
-import { getCaptchaKey } from 'src/common/config/redis-key';
+import { RedisService } from 'src/redis/redis.service';
+import { UserService } from 'src/user/user.service';
+import { JwtService } from '@nestjs/jwt';
+import { create as createCaptcha } from 'svg-captcha';
+import { HttpStatus } from '@nestjs/common';
 import { getBaseConfig } from 'src/common/config';
 
-// 模拟外部依赖
 jest.mock('svg-captcha');
-jest.mock('src/common/config/redis-key');
 jest.mock('src/common/config');
 
 describe('AuthService Unit Test', () => {
   let authService: AuthService;
-  let redis: jest.Mocked<Redis>;
+  let redisService: jest.Mocked<RedisService>;
+  let userService: jest.Mocked<UserService>;
+  let jwtService: jest.Mocked<JwtService>;
 
   const mockIp = '127.0.0.1';
   const mockUserAgent = 'test-agent';
   const mockCaptchaText = 'abcd';
   const mockCaptchaSvg = '<svg>test</svg>';
-  const mockKey = 'test-key';
-  const mockExpireIn = 300;
+  const mockUserName = 'testUser';
+  const mockPassword = 'testPass';
+  const mockToken = 'jwt-token';
+  const mockRefreshToken = 'refresh-token';
+  const mockCaptchaKey = 'captcha-key';
+  const mockSsoKey = 'sso-key';
+  const mockSignInErrorsKey = 'errors-key';
+
+  const mockBaseConfig = {
+    signInErrorLimit: 5,
+    signInErrorExpireIn: 1800,
+    jwt: {
+      algorithm: 'HS256',
+      expiresIn: 3600,
+      refreshTokenIn: 86400,
+    },
+  };
 
   beforeAll(() => {
-    // .compile() 会自动分析 AuthService 的依赖关系，并为所有依赖创建模拟对象
     const { unit, unitRef } = TestBed.create(AuthService).compile();
 
     authService = unit;
-    // 获取被注入的 Redis 模拟实例，使用 InjectRedis 注入的 redis 的 key 固定为 default_IORedisModuleConnectionToken
-    redis = unitRef.get('default_IORedisModuleConnectionToken');
+    redisService = unitRef.get(RedisService);
+    userService = unitRef.get(UserService);
+    jwtService = unitRef.get(JwtService);
   });
 
-  // 每个测试前重置模拟
   beforeEach(() => {
     jest.clearAllMocks();
-
-    // 设置模拟返回值
-    (svgCaptcha.create as jest.Mock).mockReturnValue({
+    (getBaseConfig as jest.Mock).mockReturnValue(mockBaseConfig);
+    (createCaptcha as jest.Mock).mockReturnValue({
       text: mockCaptchaText,
       data: mockCaptchaSvg,
-    });
-    (getCaptchaKey as jest.Mock).mockReturnValue(mockKey);
-    (getBaseConfig as jest.Mock).mockReturnValue({
-      captchaExpireIn: mockExpireIn,
     });
   });
 
   describe('generateCaptcha', () => {
-    it('should generate captcha and store in redis', () => {
-      // 设置 redis 模拟返回值
-      redis.set.mockResolvedValue('OK');
+    beforeEach(() => {
+      redisService.generateCaptchaKey.mockReturnValue(mockCaptchaKey);
+      redisService.setCaptcha.mockResolvedValue('OK');
+    });
 
-      // 调用被测试方法
+    it('should generate captcha and store in redis', () => {
       const result = authService.generateCaptcha(mockIp, mockUserAgent);
 
-      // 验证 svg-captcha 的 create 方法调用参数
-      expect(svgCaptcha.create).toHaveBeenCalledWith({
+      expect(createCaptcha).toHaveBeenCalledWith({
         size: 4,
         noise: 2,
         color: true,
@@ -62,36 +73,153 @@ describe('AuthService Unit Test', () => {
         background: '#f0f0f0',
       });
 
-      // 验证 getCaptchaKey 方法调用参数
-      expect(getCaptchaKey).toHaveBeenCalledWith(mockIp, mockUserAgent);
-
-      // 验证 redis 存储方法调用参数
-      expect(redis.set).toHaveBeenCalledWith(
-        mockKey,
-        mockCaptchaText,
-        'EX',
-        mockExpireIn,
+      expect(redisService.generateCaptchaKey).toHaveBeenCalledWith(
+        mockIp,
+        mockUserAgent,
       );
 
-      // 验证返回值
+      expect(redisService.setCaptcha).toHaveBeenCalledWith(
+        mockCaptchaKey,
+        mockCaptchaText,
+      );
+
       expect(result).toEqual({
         captcha: `data:image/svg+xml;base64,${Buffer.from(mockCaptchaSvg).toString('base64')}`,
       });
     });
+  });
 
-    it('should handle captcha generation errors', () => {
-      // 模拟错误
-      (svgCaptcha.create as jest.Mock).mockImplementation(() => {
-        throw new Error('Captcha generation failed');
-      });
+  describe('validateCaptcha', () => {
+    beforeEach(() => {
+      redisService.generateCaptchaKey.mockReturnValue(mockCaptchaKey);
+    });
 
-      // 验证错误抛出
-      expect(() => authService.generateCaptcha(mockIp, mockUserAgent)).toThrow(
-        'Captcha generation failed',
+    it('should return true for valid captcha and delete it', async () => {
+      redisService.getCaptcha.mockResolvedValue(mockCaptchaText);
+
+      const result = await authService.validateCaptcha(
+        mockIp,
+        mockUserAgent,
+        mockCaptchaText,
       );
 
-      // 验证失败时不调用 redis
-      expect(redis.set).not.toHaveBeenCalled();
+      expect(result).toBe(true);
+      expect(redisService.delCaptcha).toHaveBeenCalledWith(mockCaptchaKey);
+    });
+
+    it('should return false for invalid captcha', async () => {
+      redisService.getCaptcha.mockResolvedValue(mockCaptchaText);
+
+      const result = await authService.validateCaptcha(
+        mockIp,
+        mockUserAgent,
+        'wrong',
+      );
+
+      expect(result).toBe(false);
+      expect(redisService.delCaptcha).not.toHaveBeenCalled();
+    });
+
+    it('should return false when captcha not found', async () => {
+      redisService.getCaptcha.mockResolvedValue(null);
+
+      const result = await authService.validateCaptcha(
+        mockIp,
+        mockUserAgent,
+        mockCaptchaText,
+      );
+
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('login', () => {
+    const loginDto = {
+      userName: mockUserName,
+      password: mockPassword,
+      captcha: mockCaptchaText,
+    };
+
+    beforeEach(() => {
+      redisService.generateSignInErrorsKey.mockReturnValue(mockSignInErrorsKey);
+      redisService.generateSSOKey.mockReturnValue(mockSsoKey);
+      jwtService.sign
+        .mockReturnValueOnce(mockToken)
+        .mockReturnValueOnce(mockRefreshToken);
+    });
+
+    it('should return error when sign-in errors exceed limit', async () => {
+      redisService.getSignInErrors.mockResolvedValue(
+        mockBaseConfig.signInErrorLimit,
+      );
+
+      const result = await authService.login(loginDto, mockIp, mockUserAgent);
+
+      expect(result).toEqual({
+        statusCode: HttpStatus.BAD_REQUEST,
+        message: `验证码/用户名/密码错误次数过多，请${
+          mockBaseConfig.signInErrorExpireIn / 60
+        }分钟后再试`,
+      });
+    });
+
+    it('should return error for invalid captcha', async () => {
+      redisService.getSignInErrors.mockResolvedValue(0);
+      redisService.generateCaptchaKey.mockReturnValue(mockCaptchaKey);
+      redisService.getCaptcha.mockResolvedValue('different');
+
+      const result = await authService.login(loginDto, mockIp, mockUserAgent);
+
+      expect(result).toEqual({
+        statusCode: HttpStatus.BAD_REQUEST,
+        message: '验证码错误',
+      });
+      expect(redisService.setSignInErrors).toHaveBeenCalledWith(
+        mockSignInErrorsKey,
+        1,
+      );
+    });
+
+    it('should return error for invalid user credentials', async () => {
+      redisService.getSignInErrors.mockResolvedValue(0);
+      redisService.generateCaptchaKey.mockReturnValue(mockCaptchaKey);
+      redisService.getCaptcha.mockResolvedValue(mockCaptchaText);
+      userService.validateUser.mockResolvedValue(false);
+
+      const result = await authService.login(loginDto, mockIp, mockUserAgent);
+
+      expect(result).toEqual({
+        statusCode: HttpStatus.BAD_REQUEST,
+        message: '用户名或密码错误',
+      });
+      expect(redisService.setSignInErrors).toHaveBeenCalledWith(
+        mockSignInErrorsKey,
+        1,
+      );
+    });
+
+    it('should return tokens for successful login', async () => {
+      redisService.getSignInErrors.mockResolvedValue(0);
+      redisService.generateCaptchaKey.mockReturnValue(mockCaptchaKey);
+      redisService.getCaptcha.mockResolvedValue(mockCaptchaText);
+      userService.validateUser.mockResolvedValue(true);
+
+      const result = await authService.login(loginDto, mockIp, mockUserAgent);
+
+      expect(result).toEqual({
+        token: mockToken,
+        refreshToken: mockRefreshToken,
+      });
+
+      expect(jwtService.sign).toHaveBeenCalledWith(
+        { userName: mockUserName },
+        {
+          algorithm: mockBaseConfig.jwt.algorithm,
+          expiresIn: mockBaseConfig.jwt.expiresIn,
+        },
+      );
+
+      expect(redisService.setSSO).toHaveBeenCalledWith(mockSsoKey, mockToken);
     });
   });
 });

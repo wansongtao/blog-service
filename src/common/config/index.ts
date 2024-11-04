@@ -7,6 +7,11 @@ export const getBaseConfig = (configService: ConfigService) => ({
   prefix: configService.get<string>('PREFIX'),
   bcryptSaltRounds: +configService.get<number>('BCRYPT_SALT_ROUNDS', 10),
   captchaExpireIn: +configService.get<number>('CAPTCHA_EXPIRES_IN', 120),
+  signInErrorLimit: +configService.get<number>('SIGN_IN_ERROR_LIMIT', 5),
+  signInErrorExpireIn: +configService.get<number>(
+    'SIGN_IN_ERROR_EXPIRES_IN',
+    60 * 5,
+  ),
   defaultUser: {
     username: configService.get<string>('DEFAULT_ADMIN_USERNAME'),
     password: configService.get<string>('DEFAULT_ADMIN_PASSWORD'),

@@ -11,10 +11,10 @@ import winston from 'winston';
 import DailyRotateFile from 'winston-daily-rotate-file';
 import { join } from 'path';
 import { AuthModule } from './auth/auth.module';
-import { RedisModule } from '@nestjs-modules/ioredis';
 import { BaseResponseInterceptor } from 'src/common/interceptor/base-response.interceptor';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { UserModule } from './user/user.module';
+import { RedisModule } from './redis/redis.module';
 
 @Module({
   imports: [
@@ -114,15 +114,9 @@ import { UserModule } from './user/user.module';
       },
       inject: [ConfigService],
     }),
-    RedisModule.forRootAsync({
-      useFactory: (configService: ConfigService) => ({
-        type: 'single',
-        url: getBaseConfig(configService).redis.url,
-      }),
-      inject: [ConfigService],
-    }),
     AuthModule,
     UserModule,
+    RedisModule,
   ],
   providers: [
     {

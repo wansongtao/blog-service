@@ -1,10 +1,8 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { create as createCaptcha } from 'svg-captcha';
-import { InjectRedis } from '@nestjs-modules/ioredis';
-import Redis from 'ioredis';
+import { RedisService } from 'src/redis/redis.service';
 import { ConfigService } from '@nestjs/config';
 import { getBaseConfig } from 'src/common/config';
-import { getCaptchaKey, getSSOKey } from 'src/common/config/redis-key';
 import { LoginDto } from './dto/auth.dto';
 import { UserService } from 'src/user/user.service';
 import { JwtService } from '@nestjs/jwt';
@@ -14,7 +12,7 @@ import type { IPayload } from 'src/common/types';
 @Injectable()
 export class AuthService {
   constructor(
-    @InjectRedis() private readonly redis: Redis,
+    private readonly redis: RedisService,
     private readonly configService: ConfigService,
     private readonly userService: UserService,
     private readonly jwtService: JwtService,
@@ -29,9 +27,10 @@ export class AuthService {
       background: '#f0f0f0',
     });
 
-    const key = getCaptchaKey(ip, userAgent);
-    const expiresIn = getBaseConfig(this.configService).captchaExpireIn;
-    this.redis.set(key, captcha.text, 'EX', expiresIn);
+    this.redis.setCaptcha(
+      this.redis.generateCaptchaKey(ip, userAgent),
+      captcha.text,
+    );
 
     return {
       captcha: `data:image/svg+xml;base64,${Buffer.from(captcha.data).toString('base64')}`,
@@ -39,11 +38,11 @@ export class AuthService {
   }
 
   async validateCaptcha(ip: string, userAgent: string, captcha: string) {
-    const key = getCaptchaKey(ip, userAgent);
-    const value = await this.redis.get(key);
+    const key = this.redis.generateCaptchaKey(ip, userAgent);
+    const value = await this.redis.getCaptcha(key);
 
     if (value && value.toLowerCase() === captcha.toLowerCase()) {
-      this.redis.del(key);
+      this.redis.delCaptcha(key);
       return true;
     }
 
@@ -86,8 +85,7 @@ export class AuthService {
       expiresIn: config.jwt.refreshTokenIn,
     });
 
-    const ssoKey = getSSOKey(data.userName);
-    this.redis.set(ssoKey, token, 'EX', config.jwt.expiresIn);
+    this.redis.setSSO(this.redis.generateSSOKey(data.userName), token);
 
     return { token, refreshToken };
   }

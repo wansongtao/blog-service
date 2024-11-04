@@ -12,7 +12,7 @@ import type { IPayload } from 'src/common/types';
 @Injectable()
 export class AuthService {
   constructor(
-    private readonly redis: RedisService,
+    private readonly redisService: RedisService,
     private readonly configService: ConfigService,
     private readonly userService: UserService,
     private readonly jwtService: JwtService,
@@ -27,8 +27,8 @@ export class AuthService {
       background: '#f0f0f0',
     });
 
-    this.redis.setCaptcha(
-      this.redis.generateCaptchaKey(ip, userAgent),
+    this.redisService.setCaptcha(
+      this.redisService.generateCaptchaKey(ip, userAgent),
       captcha.text,
     );
 
@@ -38,11 +38,11 @@ export class AuthService {
   }
 
   async validateCaptcha(ip: string, userAgent: string, captcha: string) {
-    const key = this.redis.generateCaptchaKey(ip, userAgent);
-    const value = await this.redis.getCaptcha(key);
+    const key = this.redisService.generateCaptchaKey(ip, userAgent);
+    const value = await this.redisService.getCaptcha(key);
 
     if (value && value.toLowerCase() === captcha.toLowerCase()) {
-      this.redis.delCaptcha(key);
+      this.redisService.delCaptcha(key);
       return true;
     }
 
@@ -50,12 +50,29 @@ export class AuthService {
   }
 
   async login(data: LoginDto, ip: string, userAgent: string) {
+    const signInErrorsKey = this.redisService.generateSignInErrorsKey(
+      data.userName,
+    );
+    const signInErrors =
+      await this.redisService.getSignInErrors(signInErrorsKey);
+    if (signInErrors >= getBaseConfig(this.configService).signInErrorLimit) {
+      const expiresIn =
+        getBaseConfig(this.configService).signInErrorExpireIn / 60;
+
+      return {
+        statusCode: HttpStatus.BAD_REQUEST,
+        message: `验证码/用户名/密码错误次数过多，请${expiresIn}分钟后再试`,
+      };
+    }
+
     const isCaptchaValid = await this.validateCaptcha(
       ip,
       userAgent,
       data.captcha,
     );
     if (!isCaptchaValid) {
+      this.redisService.setSignInErrors(signInErrorsKey, signInErrors + 1);
+
       return {
         statusCode: HttpStatus.BAD_REQUEST,
         message: '验证码错误',
@@ -67,6 +84,8 @@ export class AuthService {
       data.password,
     );
     if (!isUserValid) {
+      this.redisService.setSignInErrors(signInErrorsKey, signInErrors + 1);
+
       return {
         statusCode: HttpStatus.BAD_REQUEST,
         message: '用户名或密码错误',
@@ -85,7 +104,10 @@ export class AuthService {
       expiresIn: config.jwt.refreshTokenIn,
     });
 
-    this.redis.setSSO(this.redis.generateSSOKey(data.userName), token);
+    this.redisService.setSSO(
+      this.redisService.generateSSOKey(data.userName),
+      token,
+    );
 
     return { token, refreshToken };
   }

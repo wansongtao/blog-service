@@ -35,7 +35,7 @@ export const getBaseConfig = (configService: ConfigService) => ({
     ) as JwtSignOptions['algorithm'],
     publicKeyPath: configService.get<string>('JWT_PUBLIC_KEY_PATH'),
     privateKeyPath: configService.get<string>('JWT_PRIVATE_KEY_PATH'),
-    expiresIn: configService.get<string>('JWT_EXPIRES_IN'),
+    expiresIn: +configService.get<number>('JWT_EXPIRES_IN'),
     refreshTokenIn: configService.get<string>('JWT_REFRESH_TOKEN_EXPIRES_IN'),
   },
 });

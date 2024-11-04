@@ -53,4 +53,22 @@ export class RedisService {
   delSSO(key: string) {
     return this.redis.del(key);
   }
+
+  generateSignInErrorsKey(userName: string) {
+    return `sign-in:errors:${userName}`;
+  }
+
+  setSignInErrors(key: string, value: number) {
+    const expiresIn = getBaseConfig(this.configService).signInErrorExpireIn;
+    return this.redis.set(key, value, 'EX', expiresIn);
+  }
+
+  async getSignInErrors(key: string) {
+    const result = (await this.redis.get(key)) || 0;
+    return +result;
+  }
+
+  delSignInErrors(key: string) {
+    return this.redis.del(key);
+  }
 }

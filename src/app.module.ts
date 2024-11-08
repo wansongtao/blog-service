@@ -12,9 +12,10 @@ import DailyRotateFile from 'winston-daily-rotate-file';
 import { join } from 'path';
 import { AuthModule } from './auth/auth.module';
 import { BaseResponseInterceptor } from 'src/common/interceptor/base-response.interceptor';
-import { APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { UserModule } from './user/user.module';
 import { RedisModule } from './redis/redis.module';
+import { JwtAuthGuard } from './common/guard/jwt-auth.guard';
 
 @Module({
   imports: [
@@ -122,6 +123,10 @@ import { RedisModule } from './redis/redis.module';
     {
       provide: APP_INTERCEPTOR,
       useClass: BaseResponseInterceptor,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
     },
   ],
 })

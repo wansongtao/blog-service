@@ -5,6 +5,7 @@ import { ApiBaseResponse } from 'src/common/decorator/api-base-response.decorato
 import { AuthEntity, LoginEntity } from './entities/auth.entity';
 import { LoginDto } from './dto/auth.dto';
 import { BaseResponseEntity } from 'src/common/entities/base-response.entity';
+import { Public } from 'src/common/decorator/public.decorator';
 
 @Controller('auth')
 export class AuthController {
@@ -14,6 +15,7 @@ export class AuthController {
     summary: '获取验证码',
   })
   @ApiBaseResponse(AuthEntity)
+  @Public()
   @Get('captcha')
   getCaptcha(
     @Ip() ip: string,
@@ -26,6 +28,7 @@ export class AuthController {
     summary: '登录',
   })
   @ApiBaseResponse(LoginEntity)
+  @Public()
   @Post('login')
   login(
     @Body() data: LoginDto,

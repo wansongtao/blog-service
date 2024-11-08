@@ -8,6 +8,8 @@ import { ConfigService } from '@nestjs/config';
 import { getBaseConfig } from 'src/common/config';
 import { join } from 'path';
 import { readFileSync } from 'fs';
+import { PassportModule } from '@nestjs/passport';
+import { JwtStrategy } from './jwt.strategy';
 
 @Module({
   imports: [
@@ -33,8 +35,9 @@ import { readFileSync } from 'fs';
       },
       inject: [ConfigService],
     }),
+    PassportModule,
   ],
   controllers: [AuthController],
-  providers: [AuthService],
+  providers: [AuthService, JwtStrategy],
 })
 export class AuthModule {}

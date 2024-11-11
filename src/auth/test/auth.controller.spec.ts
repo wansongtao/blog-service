@@ -1,11 +1,9 @@
 import { TestBed } from '@automock/jest';
 import { AuthController } from '../auth.controller';
 import { AuthService } from '../auth.service';
-import { AuthEntity } from '../entities/auth.entity';
+import { AuthEntity, LoginEntity } from '../entities/auth.entity';
 import { LoginDto } from '../dto/auth.dto';
-import { HttpStatus } from '@nestjs/common';
-import { LoginEntity } from '../entities/auth.entity';
-import { BaseResponseEntity } from 'src/common/entities/base-response.entity';
+import { BadRequestException } from '@nestjs/common';
 
 describe('AuthController Unit Test', () => {
   let authController: AuthController;
@@ -19,7 +17,6 @@ describe('AuthController Unit Test', () => {
   });
 
   beforeEach(() => {
-    // 在每个测试用例前重置所有 mock
     jest.clearAllMocks();
   });
 
@@ -27,17 +24,25 @@ describe('AuthController Unit Test', () => {
     expect(authController).toBeDefined();
   });
 
-  it('should return a captcha', () => {
-    const ip = '127.0.0.1';
-    const userAgent = 'Mozilla/5.0';
-    const mockCaptcha = new AuthEntity();
+  describe('getCaptcha', () => {
+    const mockIp = '127.0.0.1';
+    const mockUserAgent = 'Mozilla/5.0';
 
-    authService.generateCaptcha.mockReturnValue(mockCaptcha);
+    it('should return a captcha', () => {
+      const mockCaptcha = new AuthEntity();
+      mockCaptcha.captcha = 'base64-encoded-captcha';
 
-    const result = authController.getCaptcha(ip, userAgent);
+      authService.generateCaptcha.mockReturnValue(mockCaptcha);
 
-    expect(result).toBe(mockCaptcha);
-    expect(authService.generateCaptcha).toHaveBeenCalledWith(ip, userAgent);
+      const result = authController.getCaptcha(mockIp, mockUserAgent);
+
+      expect(result).toBe(mockCaptcha);
+      expect(authService.generateCaptcha).toHaveBeenCalledWith(
+        mockIp,
+        mockUserAgent,
+      );
+      expect(authService.generateCaptcha).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('login', () => {
@@ -69,81 +74,82 @@ describe('AuthController Unit Test', () => {
         mockIp,
         mockUserAgent,
       );
+      expect(authService.login).toHaveBeenCalledTimes(1);
     });
 
-    it('should return error response for invalid captcha', async () => {
-      const mockErrorResponse: BaseResponseEntity = {
-        statusCode: HttpStatus.BAD_REQUEST,
-        message: '验证码错误',
-      };
+    it('should throw BadRequestException for invalid credentials', async () => {
+      const errorMessage = '用户名或密码错误，或账号已被禁用';
+      authService.login.mockRejectedValue(
+        new BadRequestException(errorMessage),
+      );
 
-      authService.login.mockResolvedValue(mockErrorResponse);
+      await expect(
+        authController.login(mockLoginDto, mockIp, mockUserAgent),
+      ).rejects.toThrow(BadRequestException);
 
-      const result = (await authController.login(
-        mockLoginDto,
-        mockIp,
-        mockUserAgent,
-      )) as BaseResponseEntity;
-
-      expect(result).toBe(mockErrorResponse);
-      expect(result.statusCode).toBe(HttpStatus.BAD_REQUEST);
-      expect(result.message).toBe('验证码错误');
-    });
-
-    it('should return error response for invalid credentials', async () => {
-      const mockErrorResponse: BaseResponseEntity = {
-        statusCode: HttpStatus.BAD_REQUEST,
-        message: '用户名或密码错误',
-      };
-
-      authService.login.mockResolvedValue(mockErrorResponse);
-
-      const result = (await authController.login(
-        mockLoginDto,
-        mockIp,
-        mockUserAgent,
-      )) as BaseResponseEntity;
-
-      expect(result).toBe(mockErrorResponse);
-      expect(result.statusCode).toBe(HttpStatus.BAD_REQUEST);
-      expect(result.message).toBe('用户名或密码错误');
-    });
-
-    it('should return error response for too many login attempts', async () => {
-      const mockErrorResponse: BaseResponseEntity = {
-        statusCode: HttpStatus.BAD_REQUEST,
-        message: '验证码/用户名/密码错误次数过多，请30分钟后再试',
-      };
-
-      authService.login.mockResolvedValue(mockErrorResponse);
-
-      const result = (await authController.login(
-        mockLoginDto,
-        mockIp,
-        mockUserAgent,
-      )) as BaseResponseEntity;
-
-      expect(result).toBe(mockErrorResponse);
-      expect(result.statusCode).toBe(HttpStatus.BAD_REQUEST);
-      expect(result.message).toContain('错误次数过多');
-    });
-
-    it('should pass correct parameters to service', async () => {
-      const mockLoginResponse: LoginEntity = {
-        token: 'mockToken',
-        refreshToken: 'mockRefreshToken',
-      };
-
-      authService.login.mockResolvedValue(mockLoginResponse);
-
-      await authController.login(mockLoginDto, mockIp, mockUserAgent);
+      await expect(
+        authController.login(mockLoginDto, mockIp, mockUserAgent),
+      ).rejects.toThrow(errorMessage);
 
       expect(authService.login).toHaveBeenCalledWith(
         mockLoginDto,
         mockIp,
         mockUserAgent,
       );
-      expect(authService.login).toHaveBeenCalledTimes(1);
+    });
+
+    it('should throw BadRequestException for invalid captcha', async () => {
+      const errorMessage = '验证码错误';
+      authService.login.mockRejectedValue(
+        new BadRequestException(errorMessage),
+      );
+
+      await expect(
+        authController.login(mockLoginDto, mockIp, mockUserAgent),
+      ).rejects.toThrow(BadRequestException);
+
+      await expect(
+        authController.login(mockLoginDto, mockIp, mockUserAgent),
+      ).rejects.toThrow(errorMessage);
+    });
+
+    it('should throw BadRequestException for too many attempts', async () => {
+      const errorMessage = '验证码/用户名/密码错误次数过多，请30分钟后再试';
+      authService.login.mockRejectedValue(
+        new BadRequestException(errorMessage),
+      );
+
+      await expect(
+        authController.login(mockLoginDto, mockIp, mockUserAgent),
+      ).rejects.toThrow(BadRequestException);
+
+      await expect(
+        authController.login(mockLoginDto, mockIp, mockUserAgent),
+      ).rejects.toThrow(errorMessage);
+    });
+  });
+
+  describe('logout', () => {
+    const mockUser = {
+      userName: 'testUser',
+      userId: 'testId',
+    };
+
+    beforeEach(() => {
+      authService.logout.mockResolvedValue(undefined);
+    });
+
+    it('should successfully logout with Bearer token', async () => {
+      const mockToken = 'Bearer jwt-token';
+      const req = { user: mockUser };
+
+      await authController.logout(mockToken, req);
+
+      expect(authService.logout).toHaveBeenCalledWith(
+        'jwt-token', // token without 'Bearer ' prefix
+        mockUser.userName,
+      );
+      expect(authService.logout).toHaveBeenCalledTimes(1);
     });
   });
 });

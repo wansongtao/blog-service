@@ -4,11 +4,13 @@ import { RedisService } from 'src/redis/redis.service';
 import { UserService } from 'src/user/user.service';
 import { JwtService } from '@nestjs/jwt';
 import { create as createCaptcha } from 'svg-captcha';
-import { HttpStatus } from '@nestjs/common';
+import { BadRequestException } from '@nestjs/common';
 import { getBaseConfig } from 'src/common/config';
+import bcrypt from 'bcrypt';
 
 jest.mock('svg-captcha');
 jest.mock('src/common/config');
+jest.mock('bcrypt');
 
 describe('AuthService Unit Test', () => {
   let authService: AuthService;
@@ -133,8 +135,120 @@ describe('AuthService Unit Test', () => {
     });
   });
 
+  describe('validateUser', () => {
+    const mock = {
+      id: 'testUser',
+      password: mockPassword,
+      userName: mockUserName,
+      disabled: false,
+    };
+
+    beforeEach(() => {
+      // 添加 bcrypt.compare 的模拟
+      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+    });
+
+    it('should return false for invalid user', async () => {
+      userService.findUser.mockResolvedValue(null);
+
+      const result = await authService.validateUser(
+        'testUser sssss',
+        mockPassword,
+      );
+
+      expect(result).toBe(false);
+    });
+
+    it('should return user info for valid user', async () => {
+      userService.findUser.mockResolvedValue({ ...mock, disabled: false });
+
+      const result = await authService.validateUser(
+        'testUser',
+        'hashedPassword',
+      );
+
+      expect(result).toEqual({
+        userName: mock.userName,
+        userId: mock.id,
+      });
+    });
+
+    it('should return false for disabled user', async () => {
+      userService.findUser.mockResolvedValue({ ...mock, disabled: true });
+
+      const result = await authService.validateUser(
+        'testUser',
+        'hashedPassword',
+      );
+
+      expect(result).toBe(false);
+    });
+
+    it('should return false for invalid password', async () => {
+      userService.findUser.mockResolvedValue(mock);
+      (bcrypt.compare as jest.Mock).mockResolvedValue(false);
+
+      const result = await authService.validateUser('testUser', 'wrongPass');
+
+      expect(result).toBe(false);
+    });
+
+    it('should return user info for valid user without password validation', async () => {
+      userService.findUser.mockResolvedValue(mock);
+
+      const result = await authService.validateUser(
+        'testUser',
+        undefined,
+        false,
+      );
+
+      expect(result).toEqual({ userName: mock.userName, userId: mock.id });
+    });
+
+    it('should return false for disabled user without password validation', async () => {
+      userService.findUser.mockResolvedValue({ ...mock, disabled: true });
+
+      const result = await authService.validateUser(
+        'testUser',
+        undefined,
+        false,
+      );
+
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('generateTokens', () => {
+    const mockPayload = { userName: 'testUser', userId: 'testId' };
+
+    beforeEach(() => {
+      jwtService.sign
+        .mockReturnValueOnce(mockToken)
+        .mockReturnValueOnce(mockRefreshToken);
+    });
+
+    it('should generate jwt tokens', () => {
+      const result = authService.generateTokens(mockPayload);
+
+      expect(result).toEqual({
+        token: mockToken,
+        refreshToken: mockRefreshToken,
+      });
+
+      expect(jwtService.sign).toHaveBeenCalledWith(mockPayload, {
+        algorithm: mockBaseConfig.jwt.algorithm,
+        expiresIn: mockBaseConfig.jwt.expiresIn,
+      });
+
+      expect(jwtService.sign).toHaveBeenCalledWith(mockPayload, {
+        algorithm: mockBaseConfig.jwt.algorithm,
+        expiresIn: mockBaseConfig.jwt.refreshTokenIn,
+      });
+    });
+  });
+
   describe('login', () => {
-    const loginDto = {
+    const mockLoginDto = {
       userName: mockUserName,
       password: mockPassword,
       captcha: mockCaptchaText,
@@ -143,83 +257,99 @@ describe('AuthService Unit Test', () => {
     beforeEach(() => {
       redisService.generateSignInErrorsKey.mockReturnValue(mockSignInErrorsKey);
       redisService.generateSSOKey.mockReturnValue(mockSsoKey);
-      jwtService.sign
-        .mockReturnValueOnce(mockToken)
-        .mockReturnValueOnce(mockRefreshToken);
+      redisService.getSignInErrors.mockResolvedValue(0);
+      redisService.setSSO.mockResolvedValue('OK');
     });
 
-    it('should return error when sign-in errors exceed limit', async () => {
+    it('should throw error when sign in errors exceed limit', async () => {
       redisService.getSignInErrors.mockResolvedValue(
         mockBaseConfig.signInErrorLimit,
       );
 
-      const result = await authService.login(loginDto, mockIp, mockUserAgent);
-
-      expect(result).toEqual({
-        statusCode: HttpStatus.BAD_REQUEST,
-        message: `验证码/用户名/密码错误次数过多，请${
-          mockBaseConfig.signInErrorExpireIn / 60
-        }分钟后再试`,
-      });
+      await expect(
+        authService.login(mockLoginDto, mockIp, mockUserAgent),
+      ).rejects.toThrow(
+        new BadRequestException(
+          `验证码/用户名/密码错误次数过多，请${
+            mockBaseConfig.signInErrorExpireIn / 60
+          }分钟后再试`,
+        ),
+      );
     });
 
-    it('should return error for invalid captcha', async () => {
-      redisService.getSignInErrors.mockResolvedValue(0);
-      redisService.generateCaptchaKey.mockReturnValue(mockCaptchaKey);
-      redisService.getCaptcha.mockResolvedValue('different');
+    it('should throw error for invalid captcha', async () => {
+      redisService.getCaptcha.mockResolvedValue('differentCaptcha');
 
-      const result = await authService.login(loginDto, mockIp, mockUserAgent);
+      await expect(
+        authService.login(mockLoginDto, mockIp, mockUserAgent),
+      ).rejects.toThrow(new BadRequestException('验证码错误'));
 
-      expect(result).toEqual({
-        statusCode: HttpStatus.BAD_REQUEST,
-        message: '验证码错误',
-      });
       expect(redisService.setSignInErrors).toHaveBeenCalledWith(
         mockSignInErrorsKey,
         1,
       );
     });
 
-    it('should return error for invalid user credentials', async () => {
-      redisService.getSignInErrors.mockResolvedValue(0);
-      redisService.generateCaptchaKey.mockReturnValue(mockCaptchaKey);
+    it('should throw error for invalid credentials', async () => {
       redisService.getCaptcha.mockResolvedValue(mockCaptchaText);
-      userService.validateUser.mockResolvedValue(false);
+      redisService.generateCaptchaKey.mockReturnValue(mockCaptchaKey);
+      userService.findUser.mockResolvedValue(null);
 
-      const result = await authService.login(loginDto, mockIp, mockUserAgent);
+      await expect(
+        authService.login(mockLoginDto, mockIp, mockUserAgent),
+      ).rejects.toThrow(
+        new BadRequestException('用户名或密码错误，或账号已被禁用'),
+      );
 
-      expect(result).toEqual({
-        statusCode: HttpStatus.BAD_REQUEST,
-        message: '用户名或密码错误',
-      });
       expect(redisService.setSignInErrors).toHaveBeenCalledWith(
         mockSignInErrorsKey,
         1,
       );
     });
 
-    it('should return tokens for successful login', async () => {
-      redisService.getSignInErrors.mockResolvedValue(0);
-      redisService.generateCaptchaKey.mockReturnValue(mockCaptchaKey);
-      redisService.getCaptcha.mockResolvedValue(mockCaptchaText);
-      userService.validateUser.mockResolvedValue(true);
-
-      const result = await authService.login(loginDto, mockIp, mockUserAgent);
-
-      expect(result).toEqual({
+    it('should login successfully and return tokens', async () => {
+      const mockUser = {
+        id: 'testId',
+        userName: mockUserName,
+        password: mockPassword,
+        disabled: false,
+      };
+      const mockTokens = {
         token: mockToken,
         refreshToken: mockRefreshToken,
-      });
+      };
 
-      expect(jwtService.sign).toHaveBeenCalledWith(
-        { userName: mockUserName },
-        {
-          algorithm: mockBaseConfig.jwt.algorithm,
-          expiresIn: mockBaseConfig.jwt.expiresIn,
-        },
+      redisService.getCaptcha.mockResolvedValue(mockCaptchaText);
+      redisService.generateCaptchaKey.mockReturnValue(mockCaptchaKey);
+      userService.findUser.mockResolvedValue(mockUser);
+      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+
+      jest.spyOn(authService, 'generateTokens').mockReturnValue(mockTokens);
+
+      const result = await authService.login(
+        mockLoginDto,
+        mockIp,
+        mockUserAgent,
       );
 
-      expect(redisService.setSSO).toHaveBeenCalledWith(mockSsoKey, mockToken);
+      expect(result).toEqual(mockTokens);
+      expect(redisService.setSSO).toHaveBeenCalledWith(
+        mockSsoKey,
+        mockTokens.token,
+      );
+    });
+  });
+
+  describe('logout', () => {
+    it('should logout successfully', async () => {
+      redisService.generateSSOKey.mockReturnValue(mockSsoKey);
+      redisService.delSSO.mockResolvedValue(1);
+
+      await authService.logout(mockToken, mockUserName);
+
+      expect(redisService.setBlackList).toHaveBeenCalledWith(mockToken);
+      expect(redisService.delSSO).toHaveBeenCalledWith(mockSsoKey);
+      expect(redisService.generateSSOKey).toHaveBeenCalledWith(mockUserName);
     });
   });
 });

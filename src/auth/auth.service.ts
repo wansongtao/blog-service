@@ -1,4 +1,4 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { create as createCaptcha } from 'svg-captcha';
 import { RedisService } from 'src/redis/redis.service';
 import { ConfigService } from '@nestjs/config';
@@ -82,46 +82,7 @@ export class AuthService {
     return { userName: user.userName, userId: user.id };
   }
 
-  async login(data: LoginDto, ip: string, userAgent: string) {
-    const signInErrorsKey = this.redisService.generateSignInErrorsKey(
-      data.userName,
-    );
-    const signInErrors =
-      await this.redisService.getSignInErrors(signInErrorsKey);
-    if (signInErrors >= getBaseConfig(this.configService).signInErrorLimit) {
-      const expiresIn =
-        getBaseConfig(this.configService).signInErrorExpireIn / 60;
-
-      return {
-        statusCode: HttpStatus.BAD_REQUEST,
-        message: `验证码/用户名/密码错误次数过多，请${expiresIn}分钟后再试`,
-      };
-    }
-
-    const isCaptchaValid = await this.validateCaptcha(
-      ip,
-      userAgent,
-      data.captcha,
-    );
-    if (!isCaptchaValid) {
-      this.redisService.setSignInErrors(signInErrorsKey, signInErrors + 1);
-
-      return {
-        statusCode: HttpStatus.BAD_REQUEST,
-        message: '验证码错误',
-      };
-    }
-
-    const payload = await this.validateUser(data.userName, data.password);
-    if (!payload) {
-      this.redisService.setSignInErrors(signInErrorsKey, signInErrors + 1);
-
-      return {
-        statusCode: HttpStatus.BAD_REQUEST,
-        message: '用户名或密码错误，或账号已被禁用',
-      };
-    }
-
+  generateTokens(payload: IPayload) {
     const config = getBaseConfig(this.configService);
     const algorithm = config.jwt.algorithm;
     const token = this.jwtService.sign(payload, {
@@ -133,12 +94,47 @@ export class AuthService {
       expiresIn: config.jwt.refreshTokenIn,
     });
 
+    return { token, refreshToken };
+  }
+
+  async login(data: LoginDto, ip: string, userAgent: string) {
+    const signInErrorsKey = this.redisService.generateSignInErrorsKey(
+      data.userName,
+    );
+    const signInErrors =
+      await this.redisService.getSignInErrors(signInErrorsKey);
+    if (signInErrors >= getBaseConfig(this.configService).signInErrorLimit) {
+      const expiresIn =
+        getBaseConfig(this.configService).signInErrorExpireIn / 60;
+
+      throw new BadRequestException(
+        `验证码/用户名/密码错误次数过多，请${expiresIn}分钟后再试`,
+      );
+    }
+
+    const isCaptchaValid = await this.validateCaptcha(
+      ip,
+      userAgent,
+      data.captcha,
+    );
+    if (!isCaptchaValid) {
+      this.redisService.setSignInErrors(signInErrorsKey, signInErrors + 1);
+      throw new BadRequestException('验证码错误');
+    }
+
+    const payload = await this.validateUser(data.userName, data.password);
+    if (!payload) {
+      this.redisService.setSignInErrors(signInErrorsKey, signInErrors + 1);
+      throw new BadRequestException('用户名或密码错误，或账号已被禁用');
+    }
+
+    const tokenObj = this.generateTokens(payload);
     this.redisService.setSSO(
       this.redisService.generateSSOKey(data.userName),
-      token,
+      tokenObj.token,
     );
 
-    return { token, refreshToken };
+    return tokenObj;
   }
 
   async logout(token: string, userName: string) {

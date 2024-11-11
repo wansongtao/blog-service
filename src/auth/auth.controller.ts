@@ -4,7 +4,6 @@ import { ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { ApiBaseResponse } from 'src/common/decorator/api-base-response.decorator';
 import { AuthEntity, LoginEntity } from './entities/auth.entity';
 import { LoginDto } from './dto/auth.dto';
-import { BaseResponseEntity } from 'src/common/entities/base-response.entity';
 import { Public } from 'src/common/decorator/public.decorator';
 import { IPayload } from 'src/common/types';
 
@@ -35,7 +34,7 @@ export class AuthController {
     @Body() data: LoginDto,
     @Ip() ip: string,
     @Headers('user-agent') userAgent: string,
-  ): Promise<LoginEntity | BaseResponseEntity> {
+  ): Promise<LoginEntity> {
     return this.authService.login(data, ip, userAgent);
   }
 

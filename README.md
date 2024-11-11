@@ -1,73 +1,91 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="200" alt="Nest Logo" /></a>
-</p>
+English | [简体中文](/README.zh-CN.md)
+# BLOG-SERVICE
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+**Blog Service** is a permission management system Web service that uses the **RBAC0** permission model and supports interface-level permission control.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://coveralls.io/github/nestjs/nest?branch=master" target="_blank"><img src="https://coveralls.io/repos/github/nestjs/nest/badge.svg?branch=master#9" alt="Coverage" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Features
 
-## Description
+- Login: Supports single sign-on, using dual tokens to refresh login credentials;
+- User Management: CRUD operations, supports multiple role associations, and user disabling;
+- Role Management: CRUD operations, supports multiple permission associations, and role disabling;
+- Permission Management: CRUD operations, supports interface-level permission control;
+- Log Management: Uses winston for logging.
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Tech Stack
 
-## Installation
+`NodeJS` `NestJS` `PostgreSQL` `Prisma` `Redis` `Minio` `Docker` `Winston` `Swagger`
+
+## Quick Start
+
+### Prerequisites
+
+1. Install NodeJS 18+;
+2. Install Docker.
+
+### Clone the Project
+
+```bash
+$ git clone https://github.com/wansongtao/blog-service.git
+```
+
+### Generate Jwt Key
+
+Create a `key` folder in the project root directory, then enter the directory and create the following keys.
+
+```bash
+# Generate private key
+openssl genpkey -algorithm RSA -out private_key.pem -pkeyopt rsa_keygen_bits:2048
+
+# Generate public key
+openssl rsa -pubout -in private_key.pem -out public_key.pem
+```
+
+### Start Container Services
+
+Use docker-compose to start containers:
+
+```bash
+$ docker-compose --env-file .env.development up --build
+```
+
+### Configure Minio
+
+#### Set Minio Access Keys
+
+Access `http://localhost:9001` in your browser and log in to Minio using the username and password set in `docker-compose.yml`.
+
+Select `Access Keys` from the left menu bar, then click `Create access key` in the top right corner to create a new access key.
+
+You can then either fill the new access key into `MINIO_ACCESS_KEY` and `MINIO_SECRET_KEY` in the `.env.development` file, or copy the `MINIO_ACCESS_KEY` and `MINIO_SECRET_KEY` from the `.env.development` file into the created access key.
+
+#### Set Minio Bucket
+
+Access `http://localhost:9001` in your browser and log in to Minio using the username and password set in `docker-compose.yml`.
+
+Select `Buckets` from the left menu bar, then click the `avatar` bucket on the right. After entering the bucket, select `Anonymous`, then click `Add Access Rule` in the top right corner. In the popup, enter `/` for `Prefix`, select `readonly` for `Access`, and click `Save`.
+
+### Install Dependencies
 
 ```bash
 $ pnpm install
 ```
 
-## Running the app
+### Local Development
 
 ```bash
-# development
+# Migrate database
+$ pnpm run migrate:dev
+
+# Execute database seed
+$ pnpm run prisma:seed
+
+# Start development mode
 $ pnpm run start
 
-# watch mode
+# Start watch mode (auto-restart service when code updates)
 $ pnpm run start:dev
-
-# production mode
-$ pnpm run start:prod
 ```
-
-## Test
-
-```bash
-# unit tests
-$ pnpm run test
-
-# e2e tests
-$ pnpm run test:e2e
-
-# test coverage
-$ pnpm run test:cov
-```
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://kamilmysliwiec.com)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
 
 ## License
 
-Nest is [MIT licensed](LICENSE).
+[MIT](/LICENSE)

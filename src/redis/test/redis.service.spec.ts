@@ -225,4 +225,51 @@ describe('RedisService Unit Test', () => {
       });
     });
   });
+
+  describe('Blacklist Operations', () => {
+    describe('generateBlackListKey', () => {
+      it('should generate correct blacklist key', () => {
+        const result = redisService.generateBlackListKey(mockValue);
+        expect(result).toBe(`blacklist: ${mockValue}`);
+      });
+    });
+
+    describe('setBlackList', () => {
+      it('should set token to blacklist', async () => {
+        const mockKey = 'test-key';
+        redis.set.mockResolvedValue('OK');
+
+        redisService.setBlackList(mockKey);
+
+        expect(redis.set).toHaveBeenCalledWith(
+          `blacklist: ${mockKey}`,
+          'logout',
+          'EX',
+          mockBaseConfig.jwt.expiresIn,
+        );
+      });
+    });
+
+    describe('isBlackListed', () => {
+      it('should return true if token is blacklisted', async () => {
+        const mockKey = 'test-key';
+        redis.exists.mockResolvedValue(1);
+
+        const result = await redisService.isBlackListed(mockKey);
+
+        expect(result).toBe(true);
+        expect(redis.exists).toHaveBeenCalledWith(`blacklist: ${mockKey}`);
+      });
+
+      it('should return false if token is not blacklisted', async () => {
+        const mockKey = 'test-key';
+        redis.exists.mockResolvedValue(0);
+
+        const result = await redisService.isBlackListed(mockKey);
+
+        expect(result).toBe(false);
+        expect(redis.exists).toHaveBeenCalledWith(`blacklist: ${mockKey}`);
+      });
+    });
+  });
 });

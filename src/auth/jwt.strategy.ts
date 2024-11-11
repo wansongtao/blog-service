@@ -3,7 +3,7 @@ import { PassportStrategy } from '@nestjs/passport';
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { RedisService } from 'src/redis/redis.service';
-import { UserService } from 'src/user/user.service';
+import { AuthService } from './auth.service';
 import { IPayload } from 'src/common/types';
 import { join } from 'path';
 import { readFileSync } from 'fs';
@@ -16,7 +16,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
     private readonly configService: ConfigService,
     private readonly redisService: RedisService,
-    private readonly userService: UserService,
+    private readonly authService: AuthService,
   ) {
     const staticPath = join(__dirname, '../../../');
     const publicKeyPath = getBaseConfig(configService).jwt.publicKeyPath;
@@ -41,7 +41,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('账号已在其他地方登录');
     }
 
-    const isValidUser = await this.userService.validateUser(payload.userName);
+    const isValidUser = await this.authService.validateUser(
+      payload.userName,
+      undefined,
+      false,
+    );
     if (!isValidUser) {
       throw new UnauthorizedException('用户不存在或账号已被禁用');
     }

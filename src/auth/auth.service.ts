@@ -6,6 +6,7 @@ import { getBaseConfig } from 'src/common/config';
 import { LoginDto } from './dto/auth.dto';
 import { UserService } from 'src/user/user.service';
 import { JwtService } from '@nestjs/jwt';
+import bcrypt from 'bcrypt';
 
 import type { IPayload } from 'src/common/types';
 
@@ -49,6 +50,38 @@ export class AuthService {
     return false;
   }
 
+  validateUser(
+    userName: string,
+    password: string,
+    isValidatePwd?: true,
+  ): Promise<false | IPayload>;
+  validateUser(
+    userName: string,
+    password: undefined,
+    isValidatePwd: false,
+  ): Promise<false | IPayload>;
+  async validateUser(
+    userName: string,
+    password: string,
+    isValidatePwd?: boolean,
+  ): Promise<false | IPayload> {
+    const user = await this.userService.findUser(userName);
+    if (!user || user.disabled) {
+      return false;
+    }
+
+    if (isValidatePwd === false) {
+      return { userName: user.userName, userId: user.id };
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return false;
+    }
+
+    return { userName: user.userName, userId: user.id };
+  }
+
   async login(data: LoginDto, ip: string, userAgent: string) {
     const signInErrorsKey = this.redisService.generateSignInErrorsKey(
       data.userName,
@@ -79,22 +112,18 @@ export class AuthService {
       };
     }
 
-    const isUserValid = await this.userService.validateUser(
-      data.userName,
-      data.password,
-    );
-    if (!isUserValid) {
+    const payload = await this.validateUser(data.userName, data.password);
+    if (!payload) {
       this.redisService.setSignInErrors(signInErrorsKey, signInErrors + 1);
 
       return {
         statusCode: HttpStatus.BAD_REQUEST,
-        message: '用户名或密码错误',
+        message: '用户名或密码错误，或账号已被禁用',
       };
     }
 
     const config = getBaseConfig(this.configService);
     const algorithm = config.jwt.algorithm;
-    const payload: IPayload = { userName: data.userName };
     const token = this.jwtService.sign(payload, {
       algorithm,
       expiresIn: config.jwt.expiresIn,

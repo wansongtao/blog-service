@@ -1,29 +1,21 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'nestjs-prisma';
-import bcrypt from 'bcrypt';
 
 @Injectable()
 export class UserService {
   constructor(private readonly prismaService: PrismaService) {}
 
-  async validateUser(userName: string, password?: string) {
+  async findUser(userName: string): Promise<{
+    id: string;
+    userName: string;
+    password: string;
+    disabled: boolean;
+  } | null> {
     const user = await this.prismaService.user.findUnique({
-      where: { userName, deleted: false, disabled: false },
-      select: { id: true, password: true },
+      where: { userName, deleted: false },
+      select: { id: true, userName: true, password: true, disabled: true },
     });
-    if (!user) {
-      return false;
-    }
 
-    if (password === undefined) {
-      return true;
-    }
-
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) {
-      return false;
-    }
-
-    return true;
+    return user;
   }
 }

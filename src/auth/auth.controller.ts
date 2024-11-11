@@ -1,11 +1,12 @@
-import { Controller, Get, Ip, Headers, Body, Post } from '@nestjs/common';
+import { Controller, Get, Ip, Headers, Body, Post, Req } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { ApiOperation } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { ApiBaseResponse } from 'src/common/decorator/api-base-response.decorator';
 import { AuthEntity, LoginEntity } from './entities/auth.entity';
 import { LoginDto } from './dto/auth.dto';
 import { BaseResponseEntity } from 'src/common/entities/base-response.entity';
 import { Public } from 'src/common/decorator/public.decorator';
+import { IPayload } from 'src/common/types';
 
 @Controller('auth')
 export class AuthController {
@@ -36,5 +37,18 @@ export class AuthController {
     @Headers('user-agent') userAgent: string,
   ): Promise<LoginEntity | BaseResponseEntity> {
     return this.authService.login(data, ip, userAgent);
+  }
+
+  @ApiOperation({
+    summary: '用户登出',
+  })
+  @ApiBearerAuth()
+  @ApiBaseResponse()
+  @Get('logout')
+  logout(
+    @Headers('authorization') token: string,
+    @Req() req: { user: IPayload },
+  ) {
+    return this.authService.logout(token.split(' ')[1], req.user.userName);
   }
 }

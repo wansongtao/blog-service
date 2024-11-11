@@ -34,6 +34,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
   async validate(req: Request, payload: IPayload): Promise<IPayload> {
     const token = req.headers.authorization?.split(' ')[1];
+    const isBlackListed = await this.redisService.isBlackListed(token);
+    if (isBlackListed) {
+      throw new UnauthorizedException('请重新登录');
+    }
+
     const validToken = await this.redisService.getSSO(
       this.redisService.generateSSOKey(payload.userName),
     );

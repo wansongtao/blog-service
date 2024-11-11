@@ -71,4 +71,20 @@ export class RedisService {
   delSignInErrors(key: string) {
     return this.redis.del(key);
   }
+
+  generateBlackListKey(token: string) {
+    return `blacklist: ${token}`;
+  }
+
+  setBlackList(token: string) {
+    const key = this.generateBlackListKey(token);
+    const expiresIn = getBaseConfig(this.configService).jwt.expiresIn;
+    this.redis.set(key, 'logout', 'EX', expiresIn);
+  }
+
+  async isBlackListed(token: string) {
+    const key = this.generateBlackListKey(token);
+    const has = await this.redis.exists(key);
+    return !!has;
+  }
 }

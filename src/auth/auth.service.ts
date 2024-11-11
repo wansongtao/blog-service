@@ -140,4 +140,9 @@ export class AuthService {
 
     return { token, refreshToken };
   }
+
+  async logout(token: string, userName: string) {
+    this.redisService.setBlackList(token);
+    this.redisService.delSSO(this.redisService.generateSSOKey(userName));
+  }
 }

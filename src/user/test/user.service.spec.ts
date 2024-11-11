@@ -1,10 +1,7 @@
 import { TestBed } from '@automock/jest';
 import { PrismaService } from 'nestjs-prisma';
 import { UserService } from '../user.service';
-import bcrypt from 'bcrypt';
 import { User } from '@prisma/client';
-
-jest.mock('bcrypt');
 
 describe('UserService', () => {
   let userService: UserService;
@@ -25,73 +22,43 @@ describe('UserService', () => {
     prismaService = unitRef.get(PrismaService);
   });
 
-  describe('validateUser', () => {
-    it('should return false when user not found', async () => {
+  describe('findUser', () => {
+    it('should return null when user not found', async () => {
       // Arrange
       const mockFindUnique = prismaService.user.findUnique as jest.Mock;
       mockFindUnique.mockResolvedValue(null);
 
       // Act
-      const result = await userService.validateUser('testUser', 'password');
+      const result = await userService.findUser('testUser');
 
       // Assert
-      expect(result).toBeFalsy();
+      expect(result).toBeNull();
       expect(mockFindUnique).toHaveBeenCalledWith({
-        where: { userName: 'testUser', deleted: false, disabled: false },
-        select: { id: true, password: true },
+        where: { userName: 'testUser', deleted: false },
+        select: { id: true, password: true, userName: true, disabled: true },
       });
     });
 
-    it('should return false when password is invalid', async () => {
+    it('should return user info when userName are valid', async () => {
       // Arrange
       const mockFindUnique = prismaService.user.findUnique as jest.Mock;
       const user: Partial<User> = {
         id: 'testUser',
         password: 'hashedPassword',
+        userName: 'testUser',
+        disabled: false,
       };
       mockFindUnique.mockResolvedValue(user);
-      (bcrypt.compare as jest.Mock).mockResolvedValue(false);
 
       // Act
-      const result = await userService.validateUser(
-        'testUser',
-        'wrongPassword',
-      );
+      const result = await userService.findUser('testUser');
 
       // Assert
-      expect(result).toBeFalsy();
-      expect(bcrypt.compare).toHaveBeenCalledWith(
-        'wrongPassword',
-        'hashedPassword',
-      );
-    });
-
-    it('should return true when credentials are valid', async () => {
-      // Arrange
-      const mockFindUnique = prismaService.user.findUnique as jest.Mock;
-      const user: Partial<User> = {
-        id: 'testUser',
-        password: 'hashedPassword',
-      };
-      mockFindUnique.mockResolvedValue(user);
-      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
-
-      // Act
-      const result = await userService.validateUser(
-        'testUser',
-        'correctPassword',
-      );
-
-      // Assert
-      expect(result).toBeTruthy();
+      expect(result).toEqual(user);
       expect(mockFindUnique).toHaveBeenCalledWith({
-        where: { userName: 'testUser', deleted: false, disabled: false },
-        select: { id: true, password: true },
+        where: { userName: 'testUser', deleted: false },
+        select: { id: true, password: true, userName: true, disabled: true },
       });
-      expect(bcrypt.compare).toHaveBeenCalledWith(
-        'correctPassword',
-        'hashedPassword',
-      );
     });
   });
 });

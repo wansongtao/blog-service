@@ -44,7 +44,7 @@ describe('RedisService Unit Test', () => {
 
         const result = redisService.generateCaptchaKey(mockIp, mockUserAgent);
 
-        expect(result).toBe(`captcha:${expectedHash}`);
+        expect(result).toBe(`captcha: ${expectedHash}`);
       });
     });
 
@@ -107,7 +107,7 @@ describe('RedisService Unit Test', () => {
     describe('generateSSOKey', () => {
       it('should generate correct SSO key', () => {
         const result = redisService.generateSSOKey(mockUserName);
-        expect(result).toBe(`sso:${mockUserName}`);
+        expect(result).toBe(`sso: ${mockUserName}`);
       });
     });
 
@@ -169,8 +169,15 @@ describe('RedisService Unit Test', () => {
   describe('SignIn Errors Operations', () => {
     describe('generateSignInErrorsKey', () => {
       it('should generate correct sign-in errors key', () => {
-        const result = redisService.generateSignInErrorsKey(mockUserName);
-        expect(result).toBe(`sign-in:errors:${mockUserName}`);
+        const expectedHash = createHash('sha256')
+          .update(`${mockIp}:${mockUserAgent}`)
+          .digest('hex');
+
+        const result = redisService.generateSignInErrorsKey(
+          mockIp,
+          mockUserAgent,
+        );
+        expect(result).toBe(`sign-in:errors: ${expectedHash}`);
       });
     });
 

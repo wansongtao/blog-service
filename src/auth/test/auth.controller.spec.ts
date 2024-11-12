@@ -147,7 +147,7 @@ describe('AuthController Unit Test', () => {
 
       expect(authService.logout).toHaveBeenCalledWith(
         'jwt-token', // token without 'Bearer ' prefix
-        mockUser.userName,
+        mockUser.userId,
       );
       expect(authService.logout).toHaveBeenCalledTimes(1);
     });

@@ -40,7 +40,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     }
 
     const validToken = await this.redisService.getSSO(
-      this.redisService.generateSSOKey(payload.userName),
+      this.redisService.generateSSOKey(payload.userId),
     );
     if (validToken !== token) {
       throw new UnauthorizedException('账号已在其他地方登录');

@@ -130,15 +130,15 @@ export class AuthService {
 
     const tokenObj = this.generateTokens(payload);
     this.redisService.setSSO(
-      this.redisService.generateSSOKey(data.userName),
+      this.redisService.generateSSOKey(payload.userId),
       tokenObj.token,
     );
 
     return tokenObj;
   }
 
-  async logout(token: string, userName: string) {
+  async logout(token: string, userId: string) {
     this.redisService.setBlackList(token);
-    this.redisService.delSSO(this.redisService.generateSSOKey(userName));
+    this.redisService.delSSO(this.redisService.generateSSOKey(userId));
   }
 }

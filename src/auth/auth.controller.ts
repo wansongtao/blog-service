@@ -48,6 +48,6 @@ export class AuthController {
     @Headers('authorization') token: string,
     @Req() req: { user: IPayload },
   ) {
-    return this.authService.logout(token.split(' ')[1], req.user.userName);
+    return this.authService.logout(token.split(' ')[1], req.user.userId);
   }
 }

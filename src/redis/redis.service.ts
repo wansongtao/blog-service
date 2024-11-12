@@ -34,8 +34,8 @@ export class RedisService {
     return this.redis.del(key);
   }
 
-  generateSSOKey(userName: string) {
-    return `sso:${userName}`;
+  generateSSOKey(userId: string) {
+    return `sso:${userId}`;
   }
 
   setSSO(key: string, value: string, expiresIn?: number) {

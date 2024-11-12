@@ -99,7 +99,8 @@ export class AuthService {
 
   async login(data: LoginDto, ip: string, userAgent: string) {
     const signInErrorsKey = this.redisService.generateSignInErrorsKey(
-      data.userName,
+      ip,
+      userAgent,
     );
     const signInErrors =
       await this.redisService.getSignInErrors(signInErrorsKey);

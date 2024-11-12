@@ -15,7 +15,7 @@ export class RedisService {
   generateCaptchaKey(ip: string, userAgent: string) {
     const data = `${ip}:${userAgent}`;
     const key = createHash('sha256').update(data).digest('hex');
-    return `captcha:${key}`;
+    return `captcha: ${key}`;
   }
 
   setCaptcha(key: string, value: string, expiresIn?: number) {
@@ -35,7 +35,7 @@ export class RedisService {
   }
 
   generateSSOKey(userId: string) {
-    return `sso:${userId}`;
+    return `sso: ${userId}`;
   }
 
   setSSO(key: string, value: string, expiresIn?: number) {
@@ -54,8 +54,10 @@ export class RedisService {
     return this.redis.del(key);
   }
 
-  generateSignInErrorsKey(userName: string) {
-    return `sign-in:errors:${userName}`;
+  generateSignInErrorsKey(ip: string, userAgent: string) {
+    const data = `${ip}:${userAgent}`;
+    const key = createHash('sha256').update(data).digest('hex');
+    return `sign-in:errors: ${key}`;
   }
 
   setSignInErrors(key: string, value: number) {

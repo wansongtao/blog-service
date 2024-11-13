@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, Matches } from 'class-validator';
+import { IsNotEmpty, IsString, Matches } from 'class-validator';
 
 export class LoginDto {
   @Matches(/^[a-zA-Z][a-zA-Z0-9]{2,10}$/, { message: '用户名格式错误' })
@@ -18,4 +18,11 @@ export class LoginDto {
   @IsNotEmpty({ message: '验证码不能为空' })
   @ApiProperty({ description: '验证码' })
   captcha: string;
+}
+
+export class RefreshTokenDto {
+  @IsString({ message: 'refreshToken 必须是字符串' })
+  @IsNotEmpty({ message: 'refreshToken 不能为空' })
+  @ApiProperty({ description: '刷新令牌' })
+  refreshToken: string;
 }

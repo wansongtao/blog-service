@@ -1,10 +1,20 @@
-import { Controller, Get, Ip, Headers, Body, Post, Req } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Ip,
+  Headers,
+  Body,
+  Post,
+  Req,
+  BadRequestException,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { ApiBaseResponse } from 'src/common/decorator/api-base-response.decorator';
 import { AuthEntity, LoginEntity } from './entities/auth.entity';
-import { LoginDto } from './dto/auth.dto';
+import { LoginDto, RefreshTokenDto } from './dto/auth.dto';
 import { Public } from 'src/common/decorator/public.decorator';
+
 import { IPayload } from 'src/common/types';
 
 @Controller('auth')
@@ -49,5 +59,24 @@ export class AuthController {
     @Req() req: { user: IPayload },
   ) {
     return this.authService.logout(token.split(' ')[1], req.user.userId);
+  }
+
+  @ApiOperation({ summary: '刷新 token' })
+  @ApiBearerAuth()
+  @ApiBaseResponse(LoginEntity)
+  @Public()
+  @Post('refresh-token')
+  refreshToken(
+    @Headers('authorization') token: string,
+    @Body() data: RefreshTokenDto,
+  ): BadRequestException | Promise<LoginEntity> {
+    if (!token) {
+      return new BadRequestException('请求头中必须包含 authorization 属性');
+    }
+
+    return this.authService.refreshToken(
+      token.split(' ')[1],
+      data.refreshToken,
+    );
   }
 }

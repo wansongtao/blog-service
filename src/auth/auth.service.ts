@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { create as createCaptcha } from 'svg-captcha';
 import { RedisService } from 'src/redis/redis.service';
 import { ConfigService } from '@nestjs/config';
@@ -141,5 +145,44 @@ export class AuthService {
   async logout(token: string, userId: string) {
     this.redisService.setBlackList(token);
     this.redisService.delSSO(this.redisService.generateSSOKey(userId));
+  }
+
+  async refreshToken(token: string, refreshToken: string) {
+    const isBlackListed = await this.redisService.isBlackListed(token);
+    if (isBlackListed) {
+      throw new UnauthorizedException('请重新登录');
+    }
+
+    let payload: IPayload;
+    try {
+      const { userId, userName } =
+        this.jwtService.verify<IPayload>(refreshToken);
+      payload = { userId, userName };
+    } catch {
+      throw new UnauthorizedException('请重新登录');
+    }
+
+    const validToken = await this.redisService.getSSO(
+      this.redisService.generateSSOKey(payload.userId),
+    );
+    if (token !== validToken) {
+      throw new UnauthorizedException('该账号已在其他地方登录，请重新登录');
+    }
+
+    const validUser = await this.validateUser(
+      payload.userName,
+      undefined,
+      false,
+    );
+    if (validUser === false) {
+      throw new UnauthorizedException('用户不存在或账号已被禁用');
+    }
+
+    const tokenObj = this.generateTokens(payload);
+    this.redisService.setSSO(
+      this.redisService.generateSSOKey(payload.userId),
+      tokenObj.token,
+    );
+    return tokenObj;
   }
 }

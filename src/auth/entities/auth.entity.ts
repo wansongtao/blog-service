@@ -10,7 +10,7 @@ export class AuthEntity {
 
 export class LoginEntity {
   @ApiProperty({ description: '认证身份 token' })
-  token: string;
+  accessToken: string;
 
   @ApiProperty({ description: '用来刷新 token 的凭证' })
   refreshToken: string;

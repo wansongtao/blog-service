@@ -89,7 +89,7 @@ export class AuthService {
   generateTokens(payload: IPayload) {
     const config = getBaseConfig(this.configService);
     const algorithm = config.jwt.algorithm;
-    const token = this.jwtService.sign(payload, {
+    const accessToken = this.jwtService.sign(payload, {
       algorithm,
       expiresIn: config.jwt.expiresIn,
     });
@@ -98,7 +98,7 @@ export class AuthService {
       expiresIn: config.jwt.refreshTokenIn,
     });
 
-    return { token, refreshToken };
+    return { accessToken, refreshToken };
   }
 
   async login(data: LoginDto, ip: string, userAgent: string) {
@@ -136,7 +136,7 @@ export class AuthService {
     const tokenObj = this.generateTokens(payload);
     this.redisService.setSSO(
       this.redisService.generateSSOKey(payload.userId),
-      tokenObj.token,
+      tokenObj.accessToken,
     );
 
     return tokenObj;
@@ -181,7 +181,7 @@ export class AuthService {
     const tokenObj = this.generateTokens(payload);
     this.redisService.setSSO(
       this.redisService.generateSSOKey(payload.userId),
-      tokenObj.token,
+      tokenObj.accessToken,
     );
     return tokenObj;
   }

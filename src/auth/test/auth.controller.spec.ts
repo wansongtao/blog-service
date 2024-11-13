@@ -56,7 +56,7 @@ describe('AuthController Unit Test', () => {
 
     it('should return tokens on successful login', async () => {
       const mockLoginResponse: LoginEntity = {
-        token: 'mockToken',
+        accessToken: 'mockToken',
         refreshToken: 'mockRefreshToken',
       };
 
@@ -150,6 +150,34 @@ describe('AuthController Unit Test', () => {
         mockUser.userId,
       );
       expect(authService.logout).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('refreshToken', () => {
+    const mockToken = 'Bearer jwt-token';
+    const mockRefreshTokenDto = {
+      refreshToken: 'mock-refresh-token',
+    };
+
+    it('should successfully refresh token', async () => {
+      const mockLoginResponse: LoginEntity = {
+        accessToken: 'new-access-token',
+        refreshToken: 'new-refresh-token',
+      };
+
+      authService.refreshToken.mockResolvedValue(mockLoginResponse);
+
+      const result = await authController.refreshToken(
+        mockToken,
+        mockRefreshTokenDto,
+      );
+
+      expect(result).toBe(mockLoginResponse);
+      expect(authService.refreshToken).toHaveBeenCalledWith(
+        'jwt-token', // token without 'Bearer ' prefix
+        mockRefreshTokenDto.refreshToken,
+      );
+      expect(authService.refreshToken).toHaveBeenCalledTimes(1);
     });
   });
 });

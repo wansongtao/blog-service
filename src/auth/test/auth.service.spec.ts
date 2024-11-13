@@ -231,7 +231,7 @@ describe('AuthService Unit Test', () => {
       const result = authService.generateTokens(mockPayload);
 
       expect(result).toEqual({
-        token: mockToken,
+        accessToken: mockToken,
         refreshToken: mockRefreshToken,
       });
 
@@ -315,7 +315,7 @@ describe('AuthService Unit Test', () => {
         disabled: false,
       };
       const mockTokens = {
-        token: mockToken,
+        accessToken: mockToken,
         refreshToken: mockRefreshToken,
       };
 
@@ -335,7 +335,7 @@ describe('AuthService Unit Test', () => {
       expect(result).toEqual(mockTokens);
       expect(redisService.setSSO).toHaveBeenCalledWith(
         mockSsoKey,
-        mockTokens.token,
+        mockTokens.accessToken,
       );
     });
   });
@@ -350,6 +350,76 @@ describe('AuthService Unit Test', () => {
       expect(redisService.setBlackList).toHaveBeenCalledWith(mockToken);
       expect(redisService.delSSO).toHaveBeenCalledWith(mockSsoKey);
       expect(redisService.generateSSOKey).toHaveBeenCalledWith(mockUserName);
+    });
+  });
+
+  describe('refreshToken', () => {
+    const mockRefreshToken = 'refresh-token';
+    const mockPayload = { userId: 'testId', userName: 'testUser' };
+
+    beforeEach(() => {
+      redisService.isBlackListed.mockResolvedValue(false);
+      jwtService.verify.mockReturnValue(mockPayload);
+      redisService.getSSO.mockResolvedValue(mockToken);
+    });
+
+    it('should throw error for blacklisted token', async () => {
+      redisService.isBlackListed.mockResolvedValue(true);
+
+      await expect(
+        authService.refreshToken(mockToken, mockRefreshToken),
+      ).rejects.toThrow(new BadRequestException('请重新登录'));
+    });
+
+    it('should throw error for invalid refresh token', async () => {
+      jwtService.verify.mockImplementation(() => {
+        throw new Error();
+      });
+
+      await expect(
+        authService.refreshToken(mockToken, mockRefreshToken),
+      ).rejects.toThrow(new BadRequestException('请重新登录'));
+    });
+
+    it('should throw error for different token', async () => {
+      redisService.getSSO.mockResolvedValue('differentToken');
+
+      await expect(
+        authService.refreshToken(mockToken, mockRefreshToken),
+      ).rejects.toThrow(
+        new BadRequestException('该账号已在其他地方登录，请重新登录'),
+      );
+    });
+
+    it('should throw error for invalid user', async () => {
+      jwtService.verify.mockReturnValue(mockPayload);
+      userService.findUser.mockResolvedValue(null);
+
+      await expect(
+        authService.refreshToken(mockToken, mockRefreshToken),
+      ).rejects.toThrow(new BadRequestException('用户不存在或账号已被禁用'));
+    });
+
+    it('should refresh token successfully', async () => {
+      const mockTokens = {
+        accessToken: mockToken,
+        refreshToken: mockRefreshToken,
+      };
+
+      jwtService.verify.mockReturnValue(mockPayload);
+      userService.findUser.mockResolvedValue({
+        userName: 'testUser',
+        id: 'testId',
+        password: 'hashedPassword',
+        disabled: false,
+      });
+      const result = await authService.refreshToken(
+        mockToken,
+        mockRefreshToken,
+      );
+
+      expect(result).toEqual(mockTokens);
+      expect(redisService.setSSO).toHaveBeenCalledWith(mockSsoKey, mockToken);
     });
   });
 });

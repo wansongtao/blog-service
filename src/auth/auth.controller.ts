@@ -69,9 +69,9 @@ export class AuthController {
   refreshToken(
     @Headers('authorization') token: string,
     @Body() data: RefreshTokenDto,
-  ): BadRequestException | Promise<LoginEntity> {
+  ): Promise<LoginEntity> {
     if (!token) {
-      return new BadRequestException('请求头中必须包含 authorization 属性');
+      throw new BadRequestException('请求头中必须包含 authorization 属性');
     }
 
     return this.authService.refreshToken(

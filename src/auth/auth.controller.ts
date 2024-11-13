@@ -53,7 +53,7 @@ export class AuthController {
   })
   @ApiBearerAuth()
   @ApiBaseResponse()
-  @Get('logout')
+  @Post('logout')
   logout(
     @Headers('authorization') token: string,
     @Req() req: { user: IPayload },

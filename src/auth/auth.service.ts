@@ -142,13 +142,13 @@ export class AuthService {
     return tokenObj;
   }
 
-  async logout(token: string, userId: string) {
-    this.redisService.setBlackList(token);
+  async logout(accessToken: string, userId: string) {
+    this.redisService.setBlackList(accessToken);
     this.redisService.delSSO(this.redisService.generateSSOKey(userId));
   }
 
-  async refreshToken(token: string, refreshToken: string) {
-    const isBlackListed = await this.redisService.isBlackListed(token);
+  async refreshToken(accessToken: string, refreshToken: string) {
+    const isBlackListed = await this.redisService.isBlackListed(accessToken);
     if (isBlackListed) {
       throw new UnauthorizedException('请重新登录');
     }
@@ -165,7 +165,7 @@ export class AuthService {
     const validToken = await this.redisService.getSSO(
       this.redisService.generateSSOKey(payload.userId),
     );
-    if (token !== validToken) {
+    if (accessToken !== validToken) {
       throw new UnauthorizedException('该账号已在其他地方登录，请重新登录');
     }
 

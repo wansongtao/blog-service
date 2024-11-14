@@ -9,9 +9,9 @@ export class AuthEntity {
 }
 
 export class LoginEntity {
-  @ApiProperty({ description: '认证身份 token' })
+  @ApiProperty({ description: '访问令牌' })
   accessToken: string;
 
-  @ApiProperty({ description: '用来刷新 token 的凭证' })
+  @ApiProperty({ description: '刷新令牌' })
   refreshToken: string;
 }

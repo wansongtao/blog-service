@@ -16,11 +16,15 @@ import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { UserModule } from './user/user.module';
 import { RedisModule } from './redis/redis.module';
 import { JwtAuthGuard } from './common/guard/jwt-auth.guard';
+import { PermissionModule } from './permission/permission.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
-      envFilePath: `.env.${process.env.NODE_ENV || 'development'}`,
+      envFilePath:
+        process.env.NODE_ENV === 'production'
+          ? '../.env.production.local'
+          : `../.env.${process.env.NODE_ENV || 'development'}`,
       isGlobal: true,
       cache: true,
     }),
@@ -118,6 +122,7 @@ import { JwtAuthGuard } from './common/guard/jwt-auth.guard';
     AuthModule,
     UserModule,
     RedisModule,
+    PermissionModule,
   ],
   providers: [
     {

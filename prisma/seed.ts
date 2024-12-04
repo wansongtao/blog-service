@@ -4,14 +4,15 @@ import { hash } from 'bcrypt';
 const prisma = new PrismaClient();
 
 async function main() {
+  const roleName = process.env.DEFAULT_ADMIN_ROLE;
   const role = await prisma.role.upsert({
     create: {
-      name: 'sAdmin',
+      name: roleName,
       description: '默认超级管理员',
     },
     update: {},
     where: {
-      name: 'sAdmin',
+      name: roleName,
     },
   });
 

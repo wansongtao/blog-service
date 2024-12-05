@@ -1,18 +1,20 @@
 import { Permission } from '@prisma/client';
 import { ApiProperty } from '@nestjs/swagger';
 
-export class PermissionEntity implements Omit<Permission, 'deleted'> {
-  @ApiProperty({ description: '权限ID', type: 'number' })
-  id: Permission['id'];
+export class PermissionEntity
+  implements Omit<Permission, 'deleted' | 'updatedAt' | 'createdAt'>
+{
+  @ApiProperty({ description: '权限ID' })
+  id: number;
 
-  @ApiProperty({ description: '父权限ID', type: 'number', default: null })
-  pid: Permission['pid'];
+  @ApiProperty({ description: '父权限ID', default: null })
+  pid: number;
 
-  @ApiProperty({ description: '权限名称', type: 'string' })
-  name: Permission['name'];
+  @ApiProperty({ description: '权限名称' })
+  name: string;
 
-  @ApiProperty({ description: '权限路径', type: 'string' })
-  path: Permission['path'];
+  @ApiProperty({ description: '权限路径' })
+  path: string;
 
   @ApiProperty({
     description: '权限类型',
@@ -20,40 +22,39 @@ export class PermissionEntity implements Omit<Permission, 'deleted'> {
   })
   type: Permission['type'];
 
-  @ApiProperty({ description: '权限标识', type: 'string' })
-  permission: Permission['permission'];
+  @ApiProperty({ description: '权限标识' })
+  permission: string;
 
-  @ApiProperty({ description: '组件路径', type: 'string' })
-  component: Permission['component'];
+  @ApiProperty({ description: '组件路径' })
+  component: string;
 
-  @ApiProperty({ description: '图标', type: 'string' })
-  icon: Permission['icon'];
+  @ApiProperty({ description: '图标' })
+  icon: string;
 
-  @ApiProperty({ description: '排序', type: 'number' })
-  sort: Permission['sort'];
+  @ApiProperty({ description: '排序' })
+  sort: number;
 
-  @ApiProperty({ description: '重定向地址', type: 'string' })
+  @ApiProperty({ description: '重定向地址' })
   redirect: string;
 
-  @ApiProperty({ description: '是否隐藏', type: 'boolean', default: false })
-  hidden: Permission['hidden'];
+  @ApiProperty({ description: '是否隐藏', default: false })
+  hidden: boolean;
 
-  @ApiProperty({ description: '是否缓存', type: 'boolean', default: false })
-  cache: Permission['cache'];
+  @ApiProperty({ description: '是否缓存', default: false })
+  cache: boolean;
 
-  @ApiProperty({ description: '是否禁用', type: 'boolean', default: false })
-  disabled: Permission['disabled'];
+  @ApiProperty({ description: '是否禁用', default: false })
+  disabled: boolean;
 
   @ApiProperty({
     description: 'vue-router 的 props 属性',
-    type: 'boolean',
     default: false,
   })
-  props: Permission['props'];
+  props: boolean;
 
-  @ApiProperty({ description: '创建时间(UTC)', type: 'string' })
-  createdAt: Permission['createdAt'];
+  @ApiProperty({ description: '创建时间(UTC)' })
+  createdAt: string;
 
-  @ApiProperty({ description: '更新时间(UTC)', type: 'string' })
-  updatedAt: Permission['updatedAt'];
+  @ApiProperty({ description: '更新时间(UTC)' })
+  updatedAt: string;
 }

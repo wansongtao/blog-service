@@ -9,7 +9,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ApiBaseResponse } from 'src/common/decorator/api-base-response.decorator';
 import { Public } from 'src/common/decorator/public.decorator';
 import { AuthEntity, LoginEntity } from './entities/auth.entity';
@@ -18,6 +18,7 @@ import { UserInfoEntity } from './entities/userinfo.entity';
 
 import { IPayload } from 'src/common/types';
 
+@ApiTags('auth')
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}

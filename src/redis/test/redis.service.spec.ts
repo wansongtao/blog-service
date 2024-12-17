@@ -19,6 +19,7 @@ describe('RedisService Unit Test', () => {
     captchaExpireIn: 300,
     jwt: {
       expiresIn: 3600,
+      refreshTokenIn: '7d',
     },
     signInErrorExpireIn: 1800,
   };
@@ -276,6 +277,56 @@ describe('RedisService Unit Test', () => {
 
         expect(result).toBe(false);
         expect(redis.exists).toHaveBeenCalledWith(`blacklist: ${mockKey}`);
+      });
+    });
+  });
+
+  describe('UserPermission Operations', () => {
+    describe('generateUserPermissionKey', () => {
+      it('should generate user-permission key', () => {
+        const result = redisService.generateUserPermissionKey(mockValue);
+        expect(result).toBe(`permission: ${mockValue}`);
+      });
+    });
+
+    describe('getUserPermission', () => {
+      it('should get user-permission list', async () => {
+        const mockKey = 'test-key';
+        const mockList = ['3'];
+        redis.smembers.mockResolvedValue(mockList);
+
+        const result = await redisService.getUserPermission(mockKey);
+        expect(result).toBe(mockList);
+        expect(redis.smembers).toHaveBeenCalledWith(`permission: ${mockKey}`);
+      });
+    });
+
+    describe('setUserPermission', () => {
+      it('should set user-permission list', async () => {
+        const mockKey = 'test-key';
+        const mockPermissions = ['1'];
+        redis.sadd.mockResolvedValue(1);
+
+        redisService.setUserPermission(mockKey, mockPermissions);
+
+        expect(redis.sadd).toHaveBeenCalledWith(
+          `permission: ${mockKey}`,
+          mockPermissions,
+        );
+        expect(redis.expire).toHaveBeenCalledWith(
+          `permission: ${mockKey}`,
+          mockBaseConfig.jwt.refreshTokenIn,
+        );
+      });
+    });
+
+    describe('delUserPermission', () => {
+      it('should delete user-permission', async () => {
+        const mockKey = 'test-key';
+        redis.del.mockResolvedValue(1);
+
+        redisService.delUserPermission(mockKey);
+        expect(redis.del).toHaveBeenCalledWith('permission: test-key');
       });
     });
   });

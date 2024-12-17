@@ -17,6 +17,7 @@ import { UserModule } from './user/user.module';
 import { RedisModule } from './redis/redis.module';
 import { JwtAuthGuard } from './common/guard/jwt-auth.guard';
 import { PermissionModule } from './permission/permission.module';
+import { AuthorityGuard } from './common/guard/authority.guard';
 
 @Module({
   imports: [
@@ -132,6 +133,10 @@ import { PermissionModule } from './permission/permission.module';
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: AuthorityGuard,
     },
   ],
 })

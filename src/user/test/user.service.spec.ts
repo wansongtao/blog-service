@@ -61,4 +61,51 @@ describe('UserService', () => {
       });
     });
   });
+
+  describe('findUserPermissionInfo', () => {
+    it('should return user permission info', async () => {
+      // Arrange
+      const mockQueryRaw = prismaService.$queryRaw as jest.Mock;
+      const userPermissionInfo = [
+        {
+          user_name: 'testUser',
+          nick_name: 'testNickName',
+          avatar: 'testAvatar',
+          role_names: 'admin',
+          pid: 'testPid',
+          id: 'testId',
+          name: 'testName',
+          path: 'testPath',
+          permission: 'testPermission',
+          type: 'testType',
+          icon: 'testIcon',
+          component: 'testComponent',
+          redirect: 'testRedirect',
+          hidden: 'testHidden',
+          sort: 'testSort',
+          cache: 'testCache',
+          props: 'testProps',
+        },
+      ];
+      mockQueryRaw.mockResolvedValue(userPermissionInfo);
+
+      // Act
+      const result = await userService.findUserPermissionInfo('testId');
+
+      // Assert
+      expect(result).toEqual(userPermissionInfo);
+    });
+
+    it('should return empty array when user not found', async () => {
+      // Arrange
+      const mockQueryRaw = prismaService.$queryRaw as jest.Mock;
+      mockQueryRaw.mockResolvedValue([]);
+
+      // Act
+      const result = await userService.findUserPermissionInfo('testId');
+
+      // Assert
+      expect(result).toEqual([]);
+    });
+  });
 });

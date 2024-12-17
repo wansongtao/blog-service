@@ -180,4 +180,29 @@ describe('AuthController Unit Test', () => {
       expect(authService.refreshToken).toHaveBeenCalledTimes(1);
     });
   });
+
+  describe('getUserInfo', () => {
+    const mockUser = {
+      userName: 'testUser',
+      userId: 'testId',
+    };
+
+    it('should return user info', async () => {
+      const mockUserInfo = {
+        name: 'testNickName',
+        avatar: '',
+        roles: ['admin', 'user'],
+        permissions: ['testPermission'],
+        menus: [],
+      };
+      authService.getUserInfo.mockResolvedValue(mockUserInfo);
+
+      const req = { user: mockUser };
+      const result = await authController.getUserInfo(req);
+
+      expect(result).toBe(mockUserInfo);
+      expect(authService.getUserInfo).toHaveBeenCalledWith(mockUser.userId);
+      expect(authService.getUserInfo).toHaveBeenCalledTimes(1);
+    });
+  });
 });

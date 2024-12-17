@@ -7,6 +7,7 @@ import { create as createCaptcha } from 'svg-captcha';
 import { BadRequestException } from '@nestjs/common';
 import { getBaseConfig } from 'src/common/config';
 import bcrypt from 'bcrypt';
+import { UserPermissionInfoEntity } from 'src/user/entities/user-permission-info.entity';
 
 jest.mock('svg-captcha');
 jest.mock('src/common/config');
@@ -37,6 +38,10 @@ describe('AuthService Unit Test', () => {
       algorithm: 'HS256',
       expiresIn: 3600,
       refreshTokenIn: 86400,
+    },
+    defaultAdmin: {
+      username: 'admin',
+      permission: '*:*:*',
     },
   };
 
@@ -420,6 +425,159 @@ describe('AuthService Unit Test', () => {
 
       expect(result).toEqual(mockTokens);
       expect(redisService.setSSO).toHaveBeenCalledWith(mockSsoKey, mockToken);
+    });
+  });
+
+  describe('getUserInfo', () => {
+    const mockUserInfo = {
+      name: 'testNickName',
+      avatar: '',
+      roles: ['admin', 'user'],
+      permissions: ['testPermission'],
+      menus: [],
+    };
+
+    const userPermissionInfo: UserPermissionInfoEntity[] = [
+      {
+        user_name: 'test',
+        nick_name: 'testNickName',
+        avatar: '',
+        role_names: 'admin,user',
+        pid: 1,
+        id: 10,
+        name: 'testName',
+        path: 'testPath',
+        permission: 'testPermission',
+        type: 'BUTTON',
+        icon: 'testIcon',
+        component: 'testComponent',
+        redirect: 'testRedirect',
+        hidden: false,
+        sort: 1,
+        cache: false,
+        props: false,
+      },
+    ];
+
+    it('should throw error for invalid user', async () => {
+      userService.findUserPermissionInfo.mockResolvedValue(null);
+
+      await expect(authService.getUserInfo('testId')).rejects.toThrow(
+        new BadRequestException('用户不存在或账号已被禁用'),
+      );
+    });
+
+    it('should return user info successfully', async () => {
+      userService.findUserPermissionInfo.mockResolvedValue(userPermissionInfo);
+
+      const result = await authService.getUserInfo('testId');
+
+      expect(result).toEqual(mockUserInfo);
+    });
+
+    it('should return user info with default admin permission', async () => {
+      userService.findUserPermissionInfo.mockResolvedValue([
+        {
+          ...userPermissionInfo[0],
+          user_name: mockBaseConfig.defaultAdmin.username,
+        },
+      ]);
+
+      const result = await authService.getUserInfo('testId');
+
+      expect(result).toEqual({
+        ...mockUserInfo,
+        permissions: [mockBaseConfig.defaultAdmin.permission],
+      });
+    });
+
+    it('should return user info without roles', async () => {
+      userService.findUserPermissionInfo.mockResolvedValue([
+        {
+          ...userPermissionInfo[0],
+          role_names: '',
+        },
+      ]);
+
+      const result = await authService.getUserInfo('testId');
+
+      expect(result).toEqual({
+        ...mockUserInfo,
+        roles: [],
+        permissions: [],
+      });
+    });
+
+    it('should return user info without menus', async () => {
+      userService.findUserPermissionInfo.mockResolvedValue([
+        {
+          ...userPermissionInfo[0],
+          type: 'MENU',
+          nick_name: '',
+          permission: '',
+        },
+        {
+          ...userPermissionInfo[0],
+          type: 'MENU',
+          id: 1,
+          pid: 0,
+          permission: '',
+        },
+        {
+          ...userPermissionInfo[0],
+          type: 'MENU',
+          id: 11,
+          pid: 1,
+        },
+        {
+          ...userPermissionInfo[0],
+          type: 'MENU',
+          id: 12,
+          pid: 100,
+          permission: '',
+        },
+      ]);
+
+      const result = await authService.getUserInfo('testId');
+      const menu = {
+        name: 'testName',
+        path: 'testPath',
+        component: 'testComponent',
+        cache: false,
+        hidden: false,
+        icon: 'testIcon',
+        redirect: 'testRedirect',
+        props: false,
+      };
+
+      expect(result).toEqual({
+        ...mockUserInfo,
+        name: 'test',
+        menus: [
+          {
+            id: 1,
+            pid: 0,
+            ...menu,
+            children: [
+              {
+                id: 10,
+                pid: 1,
+                ...menu,
+              },
+              {
+                id: 11,
+                pid: 1,
+                ...menu,
+              },
+            ],
+          },
+          {
+            id: 12,
+            pid: 100,
+            ...menu,
+          },
+        ],
+      });
     });
   });
 });

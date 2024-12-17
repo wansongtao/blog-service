@@ -199,7 +199,7 @@ export class AuthService {
     const userAuthInfo: UserInfoEntity = {
       name: userInfoItem.nick_name || userInfoItem.user_name,
       avatar: userInfoItem.avatar,
-      roles: userInfoItem.role_names?.split(','),
+      roles: userInfoItem.role_names ? userInfoItem.role_names.split(',') : [],
       permissions: [],
       menus: [],
     };

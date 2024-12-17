@@ -1,5 +1,7 @@
 {
   "cSpell.words": [
-    "Minio"
+    "Minio",
+    "sadd",
+    "smembers"
   ]
 }

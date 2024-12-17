@@ -11,9 +11,10 @@ import {
 import { AuthService } from './auth.service';
 import { ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { ApiBaseResponse } from 'src/common/decorator/api-base-response.decorator';
+import { Public } from 'src/common/decorator/public.decorator';
 import { AuthEntity, LoginEntity } from './entities/auth.entity';
 import { LoginDto, RefreshTokenDto } from './dto/auth.dto';
-import { Public } from 'src/common/decorator/public.decorator';
+import { UserInfoEntity } from './entities/userinfo.entity';
 
 import { IPayload } from 'src/common/types';
 
@@ -78,5 +79,15 @@ export class AuthController {
       token.split(' ')[1],
       data.refreshToken,
     );
+  }
+
+  @ApiOperation({
+    summary: '获取用户权限信息',
+  })
+  @ApiBearerAuth()
+  @ApiBaseResponse(UserInfoEntity)
+  @Get('userinfo')
+  getUserInfo(@Req() req: { user: IPayload }): Promise<UserInfoEntity> {
+    return this.authService.getUserInfo(req.user.userId);
   }
 }

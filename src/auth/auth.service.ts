@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { create as createCaptcha } from 'svg-captcha';
@@ -11,6 +12,8 @@ import { LoginDto } from './dto/auth.dto';
 import { UserService } from 'src/user/user.service';
 import { JwtService } from '@nestjs/jwt';
 import bcrypt from 'bcrypt';
+import { generateMenus } from 'src/common/utils';
+import { UserInfoEntity } from './entities/userinfo.entity';
 
 import type { IPayload } from 'src/common/types';
 
@@ -184,5 +187,56 @@ export class AuthService {
       tokenObj.accessToken,
     );
     return tokenObj;
+  }
+
+  async getUserInfo(id: string) {
+    const userInfo = await this.userService.findUserPermissionInfo(id);
+    if (!userInfo?.length) {
+      throw new NotFoundException('用户不存在或账号已被禁用');
+    }
+
+    const userInfoItem = userInfo[0];
+    const userAuthInfo: UserInfoEntity = {
+      name: userInfoItem.nick_name || userInfoItem.user_name,
+      avatar: userInfoItem.avatar,
+      roles: userInfoItem.role_names?.split(','),
+      permissions: [],
+      menus: [],
+    };
+
+    if (!userAuthInfo.roles?.length) {
+      return userAuthInfo;
+    }
+
+    const config = getBaseConfig(this.configService);
+    if (userInfoItem.user_name === config.defaultAdmin.username) {
+      userAuthInfo.permissions = [config.defaultAdmin.permission];
+    } else {
+      userAuthInfo.permissions = userInfo
+        .filter((item) => item.permission)
+        .map((item) => item.permission);
+    }
+
+    this.redisService.setUserPermission(id, userAuthInfo.permissions);
+
+    const menus = userInfo
+      .filter((item) => item.type && item.type !== 'BUTTON')
+      .map((item) => {
+        return {
+          id: item.id,
+          pid: item.pid,
+          name: item.name,
+          path: item.path,
+          component: item.component,
+          cache: item.cache,
+          hidden: item.hidden,
+          icon: item.icon,
+          redirect: item.redirect,
+          props: item.props,
+        };
+      });
+    userAuthInfo.menus = generateMenus(menus);
+
+    return userAuthInfo;
   }
 }

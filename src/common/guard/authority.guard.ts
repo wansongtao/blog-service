@@ -4,6 +4,7 @@ import { AUTHORITY_KEY } from '../decorator/authority.decorator';
 import { RedisService } from 'src/redis/redis.service';
 import { ConfigService } from '@nestjs/config';
 import { getBaseConfig } from 'src/common/config';
+import { PermissionService } from 'src/permission/permission.service';
 
 import { IPayload } from '../types';
 
@@ -13,6 +14,7 @@ export class AuthorityGuard implements CanActivate {
     private readonly reflector: Reflector,
     private readonly configService: ConfigService,
     private readonly redisService: RedisService,
+    private readonly permissionService: PermissionService,
   ) {}
 
   async canActivate(context: ExecutionContext) {
@@ -35,6 +37,18 @@ export class AuthorityGuard implements CanActivate {
     const permissions = await this.redisService.getUserPermission(user.userId);
     if (
       permissions.some((permission) => needPermissions.includes(permission))
+    ) {
+      return true;
+    }
+
+    const userPermissions = await this.permissionService.findPermission(
+      user.userId,
+    );
+    if (userPermissions.length) {
+      this.redisService.setUserPermission(user.userId, userPermissions);
+    }
+    if (
+      userPermissions.some((permission) => needPermissions.includes(permission))
     ) {
       return true;
     }

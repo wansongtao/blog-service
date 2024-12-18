@@ -33,7 +33,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       exception instanceof Prisma.PrismaClientKnownRequestError ||
       exception instanceof Prisma.PrismaClientUnknownRequestError
     ) {
-      message = exception.message;
+      message = exception.name;
       this.handlePrismaException(exception);
     } else if (exception instanceof Error) {
       this.handleGenericError(exception);

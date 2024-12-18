@@ -102,10 +102,7 @@ export class RedisService {
   setUserPermission(id: string, permissions: string[]) {
     const key = this.generateUserPermissionKey(id);
     this.redis.sadd(key, permissions);
-    this.redis.expire(
-      key,
-      getBaseConfig(this.configService).jwt.refreshTokenIn,
-    );
+    this.redis.expire(key, getBaseConfig(this.configService).jwt.expiresIn);
   }
 
   delUserPermission(id: string) {

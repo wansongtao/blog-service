@@ -19,7 +19,6 @@ describe('RedisService Unit Test', () => {
     captchaExpireIn: 300,
     jwt: {
       expiresIn: 3600,
-      refreshTokenIn: '7d',
     },
     signInErrorExpireIn: 1800,
   };
@@ -315,7 +314,7 @@ describe('RedisService Unit Test', () => {
         );
         expect(redis.expire).toHaveBeenCalledWith(
           `permission: ${mockKey}`,
-          mockBaseConfig.jwt.refreshTokenIn,
+          mockBaseConfig.jwt.expiresIn,
         );
       });
     });

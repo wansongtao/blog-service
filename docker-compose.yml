@@ -19,6 +19,19 @@ services:
     volumes:
       - redis_data:/data
 
+  minio:
+    image: bitnami/minio:latest
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    environment:
+      MINIO_ROOT_USER: wansongtao
+      MINIO_ROOT_PASSWORD: w.12345.st
+      MINIO_DEFAULT_BUCKETS: avatar
+
 volumes:
   postgres_blog:
   redis_data:
+  minio_data:

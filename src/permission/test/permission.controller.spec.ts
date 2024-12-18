@@ -1,17 +1,13 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestBed } from '@automock/jest';
 import { PermissionController } from '../permission.controller';
-import { PermissionService } from '../permission.service';
 
 describe('PermissionController', () => {
   let controller: PermissionController;
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [PermissionController],
-      providers: [PermissionService],
-    }).compile();
+  beforeAll(() => {
+    const { unit } = TestBed.create(PermissionController).compile();
 
-    controller = module.get<PermissionController>(PermissionController);
+    controller = unit;
   });
 
   it('should be defined', () => {

@@ -45,4 +45,13 @@ export const getBaseConfig = (configService: ConfigService) => ({
     expiresIn: +configService.get<number>('JWT_EXPIRES_IN'),
     refreshTokenIn: configService.get<string>('JWT_REFRESH_TOKEN_EXPIRES_IN'),
   },
+  minio: {
+    endPoint: configService.get<string>('MINIO_END_POINT'),
+    port: +configService.get<number>('MINIO_PORT'),
+    useSSL: configService.get('MINIO_USE_SSL') === 'true',
+    accessKey: configService.get<string>('MINIO_ACCESS_KEY'),
+    secretKey: configService.get<string>('MINIO_SECRET_KEY'),
+    bucketName: configService.get<string>('MINIO_BUCKET_NAME'),
+    expiresIn: +configService.get<number>('MINIO_EXPIRES_IN'),
+  },
 });

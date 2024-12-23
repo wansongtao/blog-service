@@ -18,4 +18,16 @@ export class UploadService {
       secretKey: config.minio.secretKey,
     });
   }
+
+  async presignedUrl(fileName: string) {
+    const config = getBaseConfig(this.configService);
+
+    const url = await this.minioClient.presignedPutObject(
+      config.minio.bucketName,
+      fileName,
+      config.minio.expiresIn,
+    );
+
+    return { presignedUrl: url };
+  }
 }

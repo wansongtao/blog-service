@@ -14,6 +14,8 @@ describe('UploadService', () => {
     MINIO_USE_SSL: 'false',
     MINIO_ACCESS_KEY: 'minioadmin',
     MINIO_SECRET_KEY: 'minioadmin',
+    MINIO_BUCKET_NAME: 'avatar',
+    MINIO_EXPIRES_IN: 120,
   };
 
   beforeEach(async () => {
@@ -42,6 +44,20 @@ describe('UploadService', () => {
       useSSL: false,
       accessKey: 'minioadmin',
       secretKey: 'minioadmin',
+    });
+  });
+
+  describe('presignedUrl', () => {
+    it('should return presigned URL', async () => {
+      const presignedUrl = 'http://localhost:9000/avatar/test.jpg';
+
+      jest
+        .spyOn(uploadService['minioClient'], 'presignedPutObject')
+        .mockResolvedValue(presignedUrl);
+
+      const result = await uploadService.presignedUrl('test.jpg');
+
+      expect(result).toEqual({ presignedUrl });
     });
   });
 });

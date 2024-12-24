@@ -47,7 +47,7 @@ describe('UploadService', () => {
     });
   });
 
-  describe('presignedUrl', () => {
+  describe('presigned', () => {
     it('should return presigned URL', async () => {
       const presignedUrl = 'http://localhost:9000/avatar/test.jpg';
 

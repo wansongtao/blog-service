@@ -21,13 +21,13 @@ describe('UploadController', () => {
     expect(uploadService).toBeDefined();
   });
 
-  describe('presignedUrl', () => {
+  describe('presigned', () => {
     it('should return presigned URL', async () => {
       const presignedUrl = 'http://localhost:9000/avatar/test.jpg';
 
       uploadService.presigned.mockResolvedValue({ presignedUrl });
 
-      const result = await controller.presignedUrl({ filename: 'test.jpg' });
+      const result = await controller.presigned({ filename: 'test.jpg' });
 
       expect(result).toEqual({ presignedUrl });
     });

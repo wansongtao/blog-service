@@ -12,7 +12,7 @@ export class UploadController {
   @ApiOperation({ summary: '获取预签名 URL' })
   @ApiBaseResponse(PresignedEntity)
   @Post('presigned')
-  presignedUrl(@Body() presignedDto: PresignedDto): Promise<PresignedEntity> {
+  presigned(@Body() presignedDto: PresignedDto): Promise<PresignedEntity> {
     return this.uploadService.presigned(presignedDto.filename);
   }
 }

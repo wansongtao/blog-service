@@ -13,6 +13,6 @@ export class UploadController {
   @ApiBaseResponse(PresignedEntity)
   @Post('presigned')
   presignedUrl(@Body() presignedDto: PresignedDto): Promise<PresignedEntity> {
-    return this.uploadService.presignedUrl(presignedDto.filename);
+    return this.uploadService.presigned(presignedDto.filename);
   }
 }

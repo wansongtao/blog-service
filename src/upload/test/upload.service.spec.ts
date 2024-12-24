@@ -55,7 +55,7 @@ describe('UploadService', () => {
         .spyOn(uploadService['minioClient'], 'presignedPutObject')
         .mockResolvedValue(presignedUrl);
 
-      const result = await uploadService.presignedUrl('test.jpg');
+      const result = await uploadService.presigned('test.jpg');
 
       expect(result).toEqual({ presignedUrl });
     });

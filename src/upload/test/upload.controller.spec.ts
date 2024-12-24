@@ -25,7 +25,7 @@ describe('UploadController', () => {
     it('should return presigned URL', async () => {
       const presignedUrl = 'http://localhost:9000/avatar/test.jpg';
 
-      uploadService.presignedUrl.mockResolvedValue({ presignedUrl });
+      uploadService.presigned.mockResolvedValue({ presignedUrl });
 
       const result = await controller.presignedUrl({ filename: 'test.jpg' });
 

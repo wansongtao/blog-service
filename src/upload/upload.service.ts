@@ -19,7 +19,7 @@ export class UploadService {
     });
   }
 
-  async presignedUrl(fileName: string) {
+  async presigned(fileName: string) {
     const config = getBaseConfig(this.configService);
 
     const url = await this.minioClient.presignedPutObject(

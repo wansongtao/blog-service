@@ -33,7 +33,7 @@ async function main() {
             name: '用户管理',
             path: 'user',
             icon: 'user',
-            component: '/system/user/index.vue',
+            component: '/system/user/UserView.vue',
             cache: true,
             permissionInRole: {
               create: {
@@ -79,7 +79,7 @@ async function main() {
             name: '菜单管理',
             path: 'menu',
             icon: 'menu',
-            component: '/system/menu/index.vue',
+            component: '/system/menu/MenuView.vue',
             cache: true,
             permissionInRole: {
               create: {
@@ -125,7 +125,7 @@ async function main() {
             name: '角色管理',
             path: 'role',
             icon: 'role',
-            component: '/system/role/index.vue',
+            component: '/system/role/RoleView.vue',
             cache: true,
             permissionInRole: {
               create: {

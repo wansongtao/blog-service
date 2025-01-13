@@ -6,7 +6,7 @@ CREATE TYPE "Type" AS ENUM ('DIRECTORY', 'MENU', 'BUTTON');
 
 -- CreateTable
 CREATE TABLE "users" (
-    "id" VARCHAR(100) NOT NULL,
+    "id" VARCHAR(50) NOT NULL,
     "user_name" VARCHAR(20) NOT NULL,
     "password" VARCHAR(100) NOT NULL,
     "disabled" BOOLEAN NOT NULL DEFAULT false,

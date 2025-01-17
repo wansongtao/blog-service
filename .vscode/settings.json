@@ -1,5 +1,7 @@
 {
   "cSpell.words": [
+    "autoincrement",
+    "cuid",
     "Minio",
     "sadd",
     "smembers"

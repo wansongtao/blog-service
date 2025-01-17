@@ -1,6 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'nestjs-prisma';
 import { UserPermissionInfoEntity } from './entities/user-permission-info.entity';
+import { UserProfileEntity } from './entities/user-profile.entity';
 
 @Injectable()
 export class UserService {
@@ -54,5 +55,45 @@ export class UserService {
         LEFT JOIN role_permissions rp ON fu.id = rp.user_id
       ORDER BY rp.sort DESC;
     `;
+  }
+
+  async findProfile(id: string) {
+    const profiles: (UserProfileEntity & {
+      user_name: string;
+      nick_name: string;
+      role_names: string;
+    })[] = await this.prismaService.$queryRaw`
+      WITH user_base AS (SELECT id, user_name FROM users WHERE id = ${id})
+      SELECT ub.user_name, p.avatar, p.nick_name, p.birthday, p.description, p.email, p.gender, 
+      p.phone, COALESCE(string_agg(r.name, ','), '') AS role_names
+      FROM user_base ub
+      INNER JOIN profiles p ON ub.id = p.user_id
+      LEFT JOIN role_in_user ur ON ub.id = ur.user_id
+      LEFT JOIN roles r ON ur.role_id = r.id
+      GROUP BY ub.id, ub.user_name, p.id, p.avatar, p.nick_name, p.birthday, p.description, 
+      p.email, p.gender, p.phone;
+    `;
+
+    if (!profiles || profiles.length === 0) {
+      throw new NotFoundException('用户不存在');
+    }
+
+    const profile = profiles[0];
+    const userName = profile.user_name;
+    delete profile.user_name;
+
+    const nickName = profile.nick_name;
+    delete profile.nick_name;
+
+    const roles = profile.role_names ? profile.role_names.split(',') : [];
+    delete profile.role_names;
+
+    const userProfile: UserProfileEntity = {
+      ...profile,
+      userName,
+      roles,
+      nickName,
+    };
+    return userProfile;
   }
 }

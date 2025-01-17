@@ -108,4 +108,81 @@ describe('UserService', () => {
       expect(result).toEqual([]);
     });
   });
+
+  describe('findProfile', () => {
+    it('should return user profile', async () => {
+      // Arrange
+      const mockQueryRaw = prismaService.$queryRaw as jest.Mock;
+      const userProfile = [
+        {
+          user_name: 'testUser',
+          nick_name: 'testNickName',
+          avatar: 'testAvatar',
+          role_names: 'admin,user',
+          id: 'testId',
+          gender: 'OT',
+          phone: 'testPhone',
+          email: 'testEmail',
+          birthday: '2022-02-02',
+          description: 'testDescription',
+        },
+      ];
+
+      mockQueryRaw.mockResolvedValue(userProfile);
+
+      // Act
+      const result = await userService.findProfile('testId');
+      // Assert
+      expect(result).toEqual({
+        ...userProfile[0],
+        userName: 'testUser',
+        roles: ['admin', 'user'],
+        nickName: 'testNickName',
+      });
+    });
+
+    it('should return user profile with empty roles', async () => {
+      // Arrange
+      const mockQueryRaw = prismaService.$queryRaw as jest.Mock;
+      const userProfile = [
+        {
+          user_name: 'testUser',
+          nick_name: 'testNickName',
+          avatar: 'testAvatar',
+          role_names: '',
+          id: 'testId',
+          gender: 'OT',
+          phone: 'testPhone',
+          email: 'testEmail',
+          birthday: '2022-02-02',
+          description: 'testDescription',
+        },
+      ];
+      mockQueryRaw.mockResolvedValue(userProfile);
+
+      // Act
+      const result = await userService.findProfile('testId');
+      // Assert
+      expect(result).toEqual({
+        ...userProfile[0],
+        userName: 'testUser',
+        roles: [],
+        nickName: 'testNickName',
+      });
+    });
+
+    it('should throw NotFoundException when user not found', async () => {
+      // Arrange
+      const mockQueryRaw = prismaService.$queryRaw as jest.Mock;
+      mockQueryRaw.mockResolvedValue([]);
+
+      // Act
+      try {
+        await userService.findProfile('testId');
+      } catch (e) {
+        // Assert
+        expect(e.message).toBe('用户不存在');
+      }
+    });
+  });
 });

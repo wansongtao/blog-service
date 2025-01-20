@@ -61,4 +61,46 @@ describe('UserController', () => {
       ).rejects.toThrow(errorMessage);
     });
   });
+
+  describe('updateProfile', () => {
+    const mockUserId = 'testUser';
+    const mockProfileDto = {
+      nickName: 'newNickName',
+      avatar: 'newAvatar',
+      gender: 'FE' as const,
+      phone: 'newPhone',
+      email: 'newEmail',
+      birthday: '2023-01-01',
+      description: 'newDescription',
+    };
+
+    it('should update user profile successfully', async () => {
+      userService.updateProfile.mockResolvedValue(undefined);
+
+      await userController.updateProfile(
+        { user: { userId: mockUserId, userName: mockUserId } },
+        mockProfileDto,
+      );
+
+      expect(userService.updateProfile).toHaveBeenCalledWith(
+        mockUserId,
+        mockProfileDto,
+      );
+      expect(userService.updateProfile).toHaveBeenCalledTimes(1);
+    });
+
+    it('should throw NotFoundException if user does not exist', async () => {
+      const errorMessage = '用户不存在';
+      userService.updateProfile.mockRejectedValue(
+        new NotFoundException(errorMessage),
+      );
+
+      await expect(
+        userController.updateProfile(
+          { user: { userId: mockUserId, userName: mockUserId } },
+          mockProfileDto,
+        ),
+      ).rejects.toThrow(errorMessage);
+    });
+  });
 });

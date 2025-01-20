@@ -15,6 +15,9 @@ describe('UserService', () => {
         user: {
           findUnique: jest.fn(),
         },
+        profile: {
+          update: jest.fn(),
+        },
       })
       .compile();
 
@@ -183,6 +186,33 @@ describe('UserService', () => {
         // Assert
         expect(e.message).toBe('用户不存在');
       }
+    });
+  });
+
+  describe('updateProfile', () => {
+    it('should update user profile', async () => {
+      // Arrange
+      const mockUpdate = prismaService.profile.update as jest.Mock;
+
+      const profile = {
+        nickName: 'testNickName',
+        avatar: 'https://localhost/test.png',
+        phone: '18001187109',
+        email: '2192415523@qq.com',
+        gender: 'FE' as const,
+        birthday: '2023-02-03',
+        description: 'test',
+      };
+
+      // Act
+      await userService.updateProfile('testId', profile);
+
+      // Assert
+      expect(mockUpdate).toHaveBeenCalledWith({
+        where: { userId: 'testId' },
+        data: profile,
+      });
+      expect(profile.birthday).toBe('2023-02-03T00:00:00Z');
     });
   });
 });

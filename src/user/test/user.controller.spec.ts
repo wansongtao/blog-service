@@ -103,4 +103,53 @@ describe('UserController', () => {
       ).rejects.toThrow(errorMessage);
     });
   });
+
+  describe('updatePassword', () => {
+    const mockUserId = 'testUser';
+    const mockPasswordDto = {
+      oldPassword: 'oldPassword123',
+      newPassword: 'newPassword123',
+    };
+
+    it('should update password successfully', async () => {
+      userService.updatePassword.mockResolvedValue(undefined);
+
+      await userController.updatePassword(
+        { user: { userId: mockUserId, userName: mockUserId } },
+        mockPasswordDto,
+      );
+
+      expect(userService.updatePassword).toHaveBeenCalledWith(
+        mockUserId,
+        mockPasswordDto,
+      );
+      expect(userService.updatePassword).toHaveBeenCalledTimes(1);
+    });
+
+    it('should throw NotFoundException if user does not exist', async () => {
+      const errorMessage = '用户不存在';
+      userService.updatePassword.mockRejectedValue(
+        new NotFoundException(errorMessage),
+      );
+
+      await expect(
+        userController.updatePassword(
+          { user: { userId: mockUserId, userName: mockUserId } },
+          mockPasswordDto,
+        ),
+      ).rejects.toThrow(errorMessage);
+    });
+
+    it('should throw error if old password is incorrect', async () => {
+      const errorMessage = '原密码错误';
+      userService.updatePassword.mockRejectedValue(new Error(errorMessage));
+
+      await expect(
+        userController.updatePassword(
+          { user: { userId: mockUserId, userName: mockUserId } },
+          mockPasswordDto,
+        ),
+      ).rejects.toThrow(errorMessage);
+    });
+  });
 });

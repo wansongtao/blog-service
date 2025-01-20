@@ -2,6 +2,7 @@ import { TestBed } from '@automock/jest';
 import { PrismaService } from 'nestjs-prisma';
 import { UserService } from '../user.service';
 import { User } from '@prisma/client';
+import bcrypt from 'bcrypt';
 
 describe('UserService', () => {
   let userService: UserService;
@@ -213,6 +214,82 @@ describe('UserService', () => {
         data: profile,
       });
       expect(profile.birthday).toBe('2023-02-03T00:00:00Z');
+    });
+  });
+
+  describe('updatePassword', () => {
+    it('should throw BadRequestException when new password is same as old password', async () => {
+      // Arrange
+      const updatePasswordDto = {
+        oldPassword: 'password123',
+        newPassword: 'password123',
+      };
+
+      // Act & Assert
+      await expect(
+        userService.updatePassword('testId', updatePasswordDto),
+      ).rejects.toThrow('新密码和原密码不能相同');
+    });
+
+    it('should throw NotFoundException when user not found', async () => {
+      // Arrange
+      const mockFindUnique = prismaService.user.findUnique as jest.Mock;
+      mockFindUnique.mockResolvedValue(null);
+      const updatePasswordDto = {
+        oldPassword: 'password123',
+        newPassword: 'newPassword123',
+      };
+
+      // Act & Assert
+      await expect(
+        userService.updatePassword('testId', updatePasswordDto),
+      ).rejects.toThrow('用户不存在');
+    });
+
+    it('should throw BadRequestException when old password is incorrect', async () => {
+      // Arrange
+      const mockFindUnique = prismaService.user.findUnique as jest.Mock;
+      mockFindUnique.mockResolvedValue({
+        password: 'hashedOldPassword',
+      });
+      const updatePasswordDto = {
+        oldPassword: 'wrongPassword',
+        newPassword: 'newPassword123',
+      };
+
+      // Act & Assert
+      await expect(
+        userService.updatePassword('testId', updatePasswordDto),
+      ).rejects.toThrow('原密码错误');
+    });
+
+    it('should update password when all inputs are valid', async () => {
+      // Arrange
+      const mockFindUnique = prismaService.user.findUnique as jest.Mock;
+      const mockUpdate = prismaService.user.update as jest.Mock;
+      mockFindUnique.mockResolvedValue({
+        password: 'hashedOldPassword',
+      });
+      mockUpdate.mockResolvedValue({});
+      const updatePasswordDto = {
+        oldPassword: 'correctPassword',
+        newPassword: 'newPassword123',
+      };
+      jest
+        .spyOn(bcrypt, 'compare')
+        .mockImplementation(() => Promise.resolve(true));
+      jest
+        .spyOn(bcrypt, 'hash')
+        .mockImplementation(() => Promise.resolve('newHashedPassword'));
+
+      // Act
+      await userService.updatePassword('testId', updatePasswordDto);
+
+      // Assert
+      expect(mockUpdate).toHaveBeenCalledWith({
+        where: { id: 'testId' },
+        data: { password: 'newHashedPassword' },
+      });
     });
   });
 });

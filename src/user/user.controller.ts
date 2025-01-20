@@ -5,6 +5,7 @@ import { ApiBaseResponse } from 'src/common/decorator/api-base-response.decorato
 import { UserProfileEntity } from './entities/user-profile.entity';
 import { IPayload } from 'src/common/types';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { UpdatePasswordDto } from './dto/update-password.dto';
 
 @ApiTags('user')
 @ApiBearerAuth()
@@ -31,5 +32,17 @@ export class UserController {
     @Body() updateProfileDto: UpdateProfileDto,
   ) {
     return this.userService.updateProfile(req.user.userId, updateProfileDto);
+  }
+
+  @ApiOperation({
+    summary: '修改密码',
+  })
+  @ApiBaseResponse()
+  @Patch('password')
+  updatePassword(
+    @Req() req: { user: IPayload },
+    @Body() updatePasswordDto: UpdatePasswordDto,
+  ) {
+    return this.userService.updatePassword(req.user.userId, updatePasswordDto);
   }
 }

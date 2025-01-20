@@ -1,12 +1,23 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from 'nestjs-prisma';
+import bcrypt from 'bcrypt';
+import { ConfigService } from '@nestjs/config';
+import { getBaseConfig } from 'src/common/config';
 import { UserPermissionInfoEntity } from './entities/user-permission-info.entity';
 import { UserProfileEntity } from './entities/user-profile.entity';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { UpdatePasswordDto } from './dto/update-password.dto';
 
 @Injectable()
 export class UserService {
-  constructor(private readonly prismaService: PrismaService) {}
+  constructor(
+    private readonly prismaService: PrismaService,
+    private readonly configService: ConfigService,
+  ) {}
 
   async findUser(userName: string): Promise<{
     id: string;
@@ -106,6 +117,37 @@ export class UserService {
     await this.prismaService.profile.update({
       where: { userId: id },
       data: profile,
+    });
+  }
+
+  async updatePassword(userId: string, updatePasswordDto: UpdatePasswordDto) {
+    if (updatePasswordDto.oldPassword === updatePasswordDto.newPassword) {
+      throw new BadRequestException('新密码和原密码不能相同');
+    }
+
+    const user = await this.prismaService.user.findUnique({
+      where: { id: userId },
+      select: { password: true },
+    });
+    if (!user) {
+      throw new NotFoundException('用户不存在');
+    }
+
+    const isPasswordValid = await bcrypt.compare(
+      updatePasswordDto.oldPassword,
+      user.password,
+    );
+    if (!isPasswordValid) {
+      throw new BadRequestException('原密码错误');
+    }
+
+    const hashPassword = await bcrypt.hash(
+      updatePasswordDto.newPassword,
+      getBaseConfig(this.configService).bcryptSaltRounds,
+    );
+    await this.prismaService.user.update({
+      where: { id: userId },
+      data: { password: hashPassword },
     });
   }
 }

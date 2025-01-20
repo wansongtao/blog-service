@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'nestjs-prisma';
 import { UserPermissionInfoEntity } from './entities/user-permission-info.entity';
 import { UserProfileEntity } from './entities/user-profile.entity';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @Injectable()
 export class UserService {
@@ -95,5 +96,16 @@ export class UserService {
       nickName,
     };
     return userProfile;
+  }
+
+  async updateProfile(id: string, profile: UpdateProfileDto) {
+    if (profile.birthday) {
+      profile.birthday = profile.birthday + 'T00:00:00Z';
+    }
+
+    await this.prismaService.profile.update({
+      where: { userId: id },
+      data: profile,
+    });
   }
 }

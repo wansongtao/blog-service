@@ -30,3 +30,18 @@ export const generateMenus = <T extends { id: number; pid: number | null }>(
 
   return menus;
 };
+
+export const getSeconds = (time: number, unit: 's' | 'm' | 'h' | 'd') => {
+  switch (unit) {
+    case 's':
+      return time;
+    case 'm':
+      return time * 60;
+    case 'h':
+      return time * 60 * 60;
+    case 'd':
+      return time * 60 * 60 * 24;
+    default:
+      return time;
+  }
+};

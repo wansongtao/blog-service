@@ -3,6 +3,7 @@ import { RedisService } from '../redis.service';
 import Redis from 'ioredis';
 import { createHash } from 'crypto';
 import { getBaseConfig } from 'src/common/config';
+import { getSeconds } from 'src/common/utils';
 
 // 模拟外部依赖
 jest.mock('src/common/config');
@@ -19,6 +20,7 @@ describe('RedisService Unit Test', () => {
     captchaExpireIn: 300,
     jwt: {
       expiresIn: 3600,
+      refreshTokenIn: '7d',
     },
     signInErrorExpireIn: 1800,
   };
@@ -122,7 +124,7 @@ describe('RedisService Unit Test', () => {
           mockKey,
           mockValue,
           'EX',
-          mockBaseConfig.jwt.expiresIn,
+          getSeconds(parseInt(mockBaseConfig.jwt.refreshTokenIn), 'd'),
         );
       });
 

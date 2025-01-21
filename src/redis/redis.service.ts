@@ -4,6 +4,7 @@ import Redis from 'ioredis';
 import { ConfigService } from '@nestjs/config';
 import { createHash } from 'crypto';
 import { getBaseConfig } from 'src/common/config';
+import { getSeconds } from 'src/common/utils';
 
 @Injectable()
 export class RedisService {
@@ -40,7 +41,8 @@ export class RedisService {
 
   setSSO(key: string, value: string, expiresIn?: number) {
     if (expiresIn === undefined) {
-      expiresIn = getBaseConfig(this.configService).jwt.expiresIn;
+      const time = getBaseConfig(this.configService).jwt.refreshTokenIn;
+      expiresIn = getSeconds(parseInt(time), 'd');
     }
 
     return this.redis.set(key, value, 'EX', expiresIn);

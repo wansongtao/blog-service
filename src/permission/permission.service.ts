@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'nestjs-prisma';
+import { QueryPermissionDto } from './dto/query-permission.dto';
+import { generateMenus } from 'src/common/utils';
 
 @Injectable()
 export class PermissionService {
@@ -27,5 +29,74 @@ export class PermissionService {
     `;
 
     return permissions[0]?.permissions || [];
+  }
+
+  async findAll(query: QueryPermissionDto) {
+    const {
+      keyword,
+      disabled,
+      type,
+      page = 1,
+      pageSize = 10,
+      sort = 'desc',
+      beginTime,
+      endTime,
+    } = query;
+
+    const permissions = await this.prismaService.permission.findMany({
+      where: {
+        deleted: false,
+        name: {
+          contains: keyword,
+          mode: 'insensitive',
+        },
+        disabled,
+        type,
+        createdAt: {
+          gte: beginTime,
+          lte: endTime,
+        },
+      },
+      select: {
+        id: true,
+        pid: true,
+        name: true,
+        type: true,
+        permission: true,
+        icon: true,
+        path: true,
+        sort: true,
+        disabled: true,
+        createdAt: true,
+      },
+      orderBy: [
+        {
+          sort: 'desc',
+        },
+        {
+          createdAt: sort,
+        },
+      ],
+    });
+
+    const offset = (page - 1) * pageSize;
+    if (permissions.length < offset) {
+      return { list: [], total: 0 };
+    }
+
+    const permissionTree = generateMenus(
+      permissions.map((item) => {
+        return {
+          ...item,
+          createdAt: item.createdAt.toISOString(),
+        };
+      }),
+    );
+    if (permissionTree.length < offset) {
+      return { list: [], total: 0 };
+    }
+    const total = permissionTree.length;
+    const list = permissionTree.slice(offset, offset + pageSize);
+    return { list, total };
   }
 }

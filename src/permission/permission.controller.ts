@@ -4,6 +4,8 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ApiBaseResponse } from 'src/common/decorator/api-base-response.decorator';
 import { PermissionListEntity } from './entities/permission-list.entity';
 import { QueryPermissionDto } from './dto/query-permission.dto';
+import { QueryPermissionTreeDto } from './dto/query-permission-tree.dto';
+import { PermissionTreeEntity } from './entities/permission-tree.entity';
 
 @ApiTags('permission')
 @ApiBearerAuth()
@@ -18,5 +20,14 @@ export class PermissionController {
     @Query() queryDto: QueryPermissionDto,
   ): Promise<PermissionListEntity> {
     return this.permissionService.findAll(queryDto);
+  }
+
+  @ApiOperation({ summary: '获取权限树' })
+  @ApiBaseResponse(PermissionTreeEntity, 'array')
+  @Get('tree')
+  findTree(
+    @Query() queryDto: QueryPermissionTreeDto,
+  ): Promise<PermissionTreeEntity[]> {
+    return this.permissionService.findTree(queryDto.containButton);
   }
 }

@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'nestjs-prisma';
 import { QueryPermissionDto } from './dto/query-permission.dto';
 import { generateMenus } from 'src/common/utils';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class PermissionService {
@@ -98,5 +99,33 @@ export class PermissionService {
     const total = permissionTree.length;
     const list = permissionTree.slice(offset, offset + pageSize);
     return { list, total };
+  }
+
+  async findTree(containButton = false) {
+    const whereCondition: Prisma.PermissionWhereInput = {
+      deleted: false,
+    };
+    if (!containButton) {
+      whereCondition.type = {
+        not: 'BUTTON',
+      };
+    }
+
+    const permissions = await this.prismaService.permission.findMany({
+      where: whereCondition,
+      select: {
+        id: true,
+        pid: true,
+        name: true,
+        type: true,
+        disabled: true,
+      },
+      orderBy: {
+        sort: 'desc',
+      },
+    });
+
+    const tree = generateMenus(permissions);
+    return tree;
   }
 }

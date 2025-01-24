@@ -476,4 +476,135 @@ describe('PermissionService', () => {
       });
     });
   });
+
+  describe('remove', () => {
+    it('should throw error when permission not found', async () => {
+      const mockFindUnique = prismaService.permission.findUnique as jest.Mock;
+      mockFindUnique.mockResolvedValue(null);
+
+      await expect(permissionService.remove(1)).rejects.toThrow('权限不存在');
+    });
+
+    it('should throw error when permission is used by roles', async () => {
+      const mockPermission = {
+        id: 1,
+        permissionInRole: [{}],
+        children: [],
+      };
+
+      const mockFindUnique = prismaService.permission.findUnique as jest.Mock;
+      mockFindUnique.mockResolvedValue(mockPermission);
+
+      await expect(permissionService.remove(1)).rejects.toThrow(
+        '该权限已被角色使用，不能删除',
+      );
+    });
+
+    it('should throw error when permission has children', async () => {
+      const mockPermission = {
+        id: 1,
+        permissionInRole: [],
+        children: [{}],
+      };
+
+      const mockFindUnique = prismaService.permission.findUnique as jest.Mock;
+      mockFindUnique.mockResolvedValue(mockPermission);
+
+      await expect(permissionService.remove(1)).rejects.toThrow(
+        '该权限下存在子权限，不能删除',
+      );
+    });
+
+    it('should soft delete permission successfully', async () => {
+      const mockPermission = {
+        id: 1,
+        permissionInRole: [],
+        children: [],
+      };
+
+      const mockFindUnique = prismaService.permission.findUnique as jest.Mock;
+      mockFindUnique.mockResolvedValue(mockPermission);
+
+      const mockUpdate = prismaService.permission.update as jest.Mock;
+
+      await permissionService.remove(1);
+
+      expect(mockUpdate).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { deleted: true },
+      });
+    });
+  });
+
+  describe('batchRemove', () => {
+    it('should throw error when no permissions found', async () => {
+      const mockFindMany = prismaService.permission.findMany as jest.Mock;
+      mockFindMany.mockResolvedValue([]);
+
+      await expect(permissionService.batchRemove([1, 2])).rejects.toThrow(
+        '权限不存在',
+      );
+    });
+
+    it('should throw error when permissions are used by roles', async () => {
+      const mockPermissions = [
+        {
+          id: 1,
+          permissionInRole: [{}],
+          children: [],
+        },
+      ];
+
+      const mockFindMany = prismaService.permission.findMany as jest.Mock;
+      mockFindMany.mockResolvedValue(mockPermissions);
+
+      await expect(permissionService.batchRemove([1])).rejects.toThrow(
+        '部分权限已被角色使用或存在子权限，不能删除',
+      );
+    });
+
+    it('should throw error when permissions have children', async () => {
+      const mockPermissions = [
+        {
+          id: 1,
+          permissionInRole: [],
+          children: [{}],
+        },
+      ];
+
+      const mockFindMany = prismaService.permission.findMany as jest.Mock;
+      mockFindMany.mockResolvedValue(mockPermissions);
+
+      await expect(permissionService.batchRemove([1])).rejects.toThrow(
+        '部分权限已被角色使用或存在子权限，不能删除',
+      );
+    });
+
+    it('should soft delete permissions successfully', async () => {
+      const mockPermissions = [
+        {
+          id: 1,
+          permissionInRole: [],
+          children: [],
+        },
+        {
+          id: 2,
+          permissionInRole: [],
+          children: [],
+        },
+      ];
+
+      const mockFindMany = prismaService.permission.findMany as jest.Mock;
+      mockFindMany.mockResolvedValue(mockPermissions);
+
+      const mockUpdateMany = prismaService.permission.updateMany as jest.Mock;
+
+      await permissionService.batchRemove([1, 2]);
+
+      expect(mockUpdateMany).toHaveBeenCalledWith({
+        where: { id: { in: [1, 2] } },
+        data: { deleted: true },
+      });
+    });
+  });
 });

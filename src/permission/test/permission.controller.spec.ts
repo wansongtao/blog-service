@@ -236,4 +236,46 @@ describe('PermissionController', () => {
       );
     });
   });
+
+  describe('remove', () => {
+    const mockId = 1;
+
+    it('should remove a permission', async () => {
+      permissionService.remove.mockResolvedValue(null);
+
+      await controller.remove(mockId);
+
+      expect(permissionService.remove).toHaveBeenCalledWith(mockId);
+      expect(permissionService.remove).toHaveBeenCalledTimes(1);
+    });
+
+    it('should handle remove errors', async () => {
+      const error = new Error('Remove failed');
+      permissionService.remove.mockRejectedValue(error);
+
+      await expect(controller.remove(mockId)).rejects.toThrow(error);
+      expect(permissionService.remove).toHaveBeenCalledWith(mockId);
+    });
+  });
+
+  describe('batchRemove', () => {
+    const mockIds = { ids: [1, 2, 3] };
+
+    it('should remove multiple permissions', async () => {
+      permissionService.batchRemove.mockResolvedValue(null);
+
+      await controller.batchRemove(mockIds);
+
+      expect(permissionService.batchRemove).toHaveBeenCalledWith(mockIds.ids);
+      expect(permissionService.batchRemove).toHaveBeenCalledTimes(1);
+    });
+
+    it('should handle batch remove errors', async () => {
+      const error = new Error('Batch remove failed');
+      permissionService.batchRemove.mockRejectedValue(error);
+
+      await expect(controller.batchRemove(mockIds)).rejects.toThrow(error);
+      expect(permissionService.batchRemove).toHaveBeenCalledWith(mockIds.ids);
+    });
+  });
 });

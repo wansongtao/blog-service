@@ -1,6 +1,7 @@
 import { TestBed } from '@automock/jest';
 import { PermissionController } from '../permission.controller';
 import { PermissionService } from '../permission.service';
+import { CreatePermissionDto } from '../dto/create-permission.dto';
 
 describe('PermissionController', () => {
   let controller: PermissionController;
@@ -71,6 +72,88 @@ describe('PermissionController', () => {
 
       expect(permissionService.findAll).toHaveBeenCalledWith(mockQueryDto);
       expect(result).toEqual(emptyResponse);
+    });
+  });
+
+  describe('findTree', () => {
+    const mockQueryDto = {
+      containButton: false,
+    };
+
+    const mockTreeResponse = [
+      {
+        id: 1,
+        pid: 0,
+        name: 'test1',
+        type: 'MENU' as const,
+        permission: 'test:1',
+        icon: 'icon1',
+        path: '/test1',
+        sort: 1,
+        disabled: false,
+        children: [],
+      },
+    ];
+
+    it('should return permission tree', async () => {
+      permissionService.findTree.mockResolvedValue(mockTreeResponse);
+
+      const result = await controller.findTree(mockQueryDto);
+
+      expect(permissionService.findTree).toHaveBeenCalledWith(
+        mockQueryDto.containButton,
+      );
+      expect(result).toEqual(mockTreeResponse);
+      expect(permissionService.findTree).toHaveBeenCalledTimes(1);
+    });
+
+    it('should handle empty tree results', async () => {
+      permissionService.findTree.mockResolvedValue([]);
+
+      const result = await controller.findTree(mockQueryDto);
+
+      expect(permissionService.findTree).toHaveBeenCalledWith(
+        mockQueryDto.containButton,
+      );
+      expect(result).toEqual([]);
+    });
+
+    it('should handle errors when getting tree', async () => {
+      const error = new Error('Failed to get permission tree');
+      permissionService.findTree.mockRejectedValue(error);
+
+      await expect(controller.findTree(mockQueryDto)).rejects.toThrow(error);
+      expect(permissionService.findTree).toHaveBeenCalledWith(
+        mockQueryDto.containButton,
+      );
+    });
+  });
+
+  describe('create', () => {
+    const mockCreateDto: CreatePermissionDto = {
+      pid: 0,
+      name: 'test1',
+      type: 'MENU' as const,
+      permission: 'test:1',
+      icon: 'icon1',
+      path: '/test1',
+      sort: 1,
+    };
+
+    it('should create a new permission', async () => {
+      permissionService.create.mockResolvedValue(null);
+
+      controller.create(mockCreateDto);
+      expect(permissionService.create).toHaveBeenCalledWith(mockCreateDto);
+      expect(permissionService.create).toHaveBeenCalledTimes(1);
+    });
+
+    it('should handle creation errors', async () => {
+      const error = new Error('Creation failed');
+      permissionService.create.mockRejectedValue(error);
+
+      await expect(controller.create(mockCreateDto)).rejects.toThrow(error);
+      expect(permissionService.create).toHaveBeenCalledWith(mockCreateDto);
     });
   });
 });

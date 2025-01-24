@@ -1,8 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from 'nestjs-prisma';
 import { QueryPermissionDto } from './dto/query-permission.dto';
 import { generateMenus } from 'src/common/utils';
 import { Prisma } from '@prisma/client';
+import { CreatePermissionDto } from './dto/create-permission.dto';
 
 @Injectable()
 export class PermissionService {
@@ -127,5 +128,66 @@ export class PermissionService {
 
     const tree = generateMenus(permissions);
     return tree;
+  }
+
+  async create(createDto: CreatePermissionDto) {
+    if (createDto.type !== 'BUTTON' && !createDto.path) {
+      throw new BadRequestException('目录/菜单的路径不能为空');
+    }
+
+    if (createDto.type === 'MENU' && !createDto.component) {
+      throw new BadRequestException('菜单的组件地址不能为空');
+    }
+
+    if (createDto.type === 'BUTTON' && !createDto.permission) {
+      throw new BadRequestException('按钮的权限标识不能为空');
+    }
+
+    const permission = await this.prismaService.permission.findFirst({
+      where: {
+        OR: [
+          {
+            id: createDto.pid,
+          },
+          {
+            name: createDto.name,
+          },
+          {
+            permission: createDto.permission,
+          },
+        ],
+        deleted: false,
+      },
+      select: {
+        type: true,
+        name: true,
+        permission: true,
+      },
+    });
+
+    if (!permission && createDto.pid) {
+      throw new BadRequestException('父权限不存在');
+    }
+
+    if (permission) {
+      if (permission.name === createDto.name) {
+        throw new BadRequestException('权限名称已存在');
+      }
+
+      if (
+        createDto.permission &&
+        permission.permission === createDto.permission
+      ) {
+        throw new BadRequestException('权限标识已存在');
+      }
+
+      if (permission.type === 'BUTTON') {
+        throw new BadRequestException('按钮权限不能添加子权限');
+      }
+    }
+
+    await this.prismaService.permission.create({
+      data: createDto,
+    });
   }
 }

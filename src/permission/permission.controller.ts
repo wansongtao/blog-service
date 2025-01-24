@@ -1,4 +1,4 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query } from '@nestjs/common';
 import { PermissionService } from './permission.service';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ApiBaseResponse } from 'src/common/decorator/api-base-response.decorator';
@@ -6,6 +6,8 @@ import { PermissionListEntity } from './entities/permission-list.entity';
 import { QueryPermissionDto } from './dto/query-permission.dto';
 import { QueryPermissionTreeDto } from './dto/query-permission-tree.dto';
 import { PermissionTreeEntity } from './entities/permission-tree.entity';
+import { CreatePermissionDto } from './dto/create-permission.dto';
+import { Authority } from 'src/common/decorator/authority.decorator';
 
 @ApiTags('permission')
 @ApiBearerAuth()
@@ -29,5 +31,13 @@ export class PermissionController {
     @Query() queryDto: QueryPermissionTreeDto,
   ): Promise<PermissionTreeEntity[]> {
     return this.permissionService.findTree(queryDto.containButton);
+  }
+
+  @ApiOperation({ summary: '创建权限' })
+  @ApiBaseResponse()
+  @Authority('system:menu:add')
+  @Post()
+  create(@Body() createPermissionDto: CreatePermissionDto) {
+    return this.permissionService.create(createPermissionDto);
   }
 }

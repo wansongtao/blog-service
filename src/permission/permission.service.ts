@@ -4,10 +4,15 @@ import { QueryPermissionDto } from './dto/query-permission.dto';
 import { generateMenus } from 'src/common/utils';
 import { Prisma } from '@prisma/client';
 import { CreatePermissionDto } from './dto/create-permission.dto';
+import { UpdatePermissionDto } from './dto/update-permission.dto';
+import { RedisService } from 'src/redis/redis.service';
 
 @Injectable()
 export class PermissionService {
-  constructor(private readonly prismaService: PrismaService) {}
+  constructor(
+    private readonly prismaService: PrismaService,
+    private readonly redisService: RedisService,
+  ) {}
 
   async findPermission(userId: string) {
     const permissions = await this.prismaService.$queryRaw<
@@ -212,6 +217,87 @@ export class PermissionService {
         redirect: true,
         sort: true,
       },
+    });
+  }
+
+  async update(id: number, updateDto: UpdatePermissionDto) {
+    const permission = await this.prismaService.permission.findUnique({
+      where: { id, deleted: false },
+      include: {
+        permissionInRole: {
+          where: {
+            roles: {
+              deleted: false,
+            },
+          },
+          include: {
+            roles: {
+              include: {
+                roleInUser: {
+                  select: {
+                    userId: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!permission) {
+      throw new BadRequestException('权限不存在');
+    }
+
+    if (permission.permissionInRole.length > 0) {
+      const sensitiveFields = ['type', 'permission', 'pid'];
+      const hasChangeSensitiveField = sensitiveFields.some(
+        (field) => updateDto[field] && updateDto[field] !== permission[field],
+      );
+
+      if (hasChangeSensitiveField) {
+        throw new BadRequestException(
+          '该权限已被角色使用，不能修改类型、权限标识、父权限',
+        );
+      }
+    }
+
+    const safeFields = [
+      'name',
+      'icon',
+      'sort',
+      'path',
+      'component',
+      'hidden',
+      'disabled',
+      'cache',
+      'redirect',
+      'props',
+    ];
+    const updateData: UpdatePermissionDto = Object.keys(updateDto)
+      .filter((key) => safeFields.includes(key))
+      .reduce(
+        (acc, key) => ({
+          ...acc,
+          [key]: updateDto[key],
+        }),
+        {},
+      );
+
+    // 如果禁用了权限，删除用户的权限缓存
+    if (updateData.disabled === false) {
+      const userIds = permission.permissionInRole.flatMap((item) => {
+        return item.roles.roleInUser.map((item) => item.userId);
+      });
+
+      userIds.forEach((userId) => {
+        this.redisService.delUserPermission(userId);
+      });
+    }
+
+    await this.prismaService.permission.update({
+      where: { id },
+      data: updateData,
     });
   }
 }

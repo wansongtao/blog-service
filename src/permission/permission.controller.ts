@@ -4,6 +4,7 @@ import {
   Get,
   Param,
   ParseIntPipe,
+  Patch,
   Post,
   Query,
 } from '@nestjs/common';
@@ -17,6 +18,7 @@ import { PermissionTreeEntity } from './entities/permission-tree.entity';
 import { CreatePermissionDto } from './dto/create-permission.dto';
 import { Authority } from 'src/common/decorator/authority.decorator';
 import { PermissionEntity } from './entities/permission.entity';
+import { UpdatePermissionDto } from './dto/update-permission.dto';
 
 @ApiTags('permission')
 @ApiBearerAuth()
@@ -55,5 +57,16 @@ export class PermissionController {
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.permissionService.findOne(id);
+  }
+
+  @ApiOperation({ summary: '更新权限' })
+  @ApiBaseResponse()
+  @Authority('system:menu:edit')
+  @Patch(':id')
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updatePermissionDto: UpdatePermissionDto,
+  ) {
+    return this.permissionService.update(id, updatePermissionDto);
   }
 }

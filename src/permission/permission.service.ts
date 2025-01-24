@@ -190,4 +190,28 @@ export class PermissionService {
       data: createDto,
     });
   }
+
+  findOne(id: number) {
+    return this.prismaService.permission.findUnique({
+      where: {
+        id,
+        deleted: false,
+      },
+      select: {
+        pid: true,
+        name: true,
+        type: true,
+        path: true,
+        permission: true,
+        icon: true,
+        cache: true,
+        props: true,
+        hidden: true,
+        component: true,
+        disabled: true,
+        redirect: true,
+        sort: true,
+      },
+    });
+  }
 }

@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseIntPipe,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { PermissionService } from './permission.service';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ApiBaseResponse } from 'src/common/decorator/api-base-response.decorator';
@@ -8,6 +16,7 @@ import { QueryPermissionTreeDto } from './dto/query-permission-tree.dto';
 import { PermissionTreeEntity } from './entities/permission-tree.entity';
 import { CreatePermissionDto } from './dto/create-permission.dto';
 import { Authority } from 'src/common/decorator/authority.decorator';
+import { PermissionEntity } from './entities/permission.entity';
 
 @ApiTags('permission')
 @ApiBearerAuth()
@@ -39,5 +48,12 @@ export class PermissionController {
   @Post()
   create(@Body() createPermissionDto: CreatePermissionDto) {
     return this.permissionService.create(createPermissionDto);
+  }
+
+  @ApiOperation({ summary: '获取单个权限详情' })
+  @ApiBaseResponse(PermissionEntity)
+  @Get(':id')
+  findOne(@Param('id', ParseIntPipe) id: number) {
+    return this.permissionService.findOne(id);
   }
 }

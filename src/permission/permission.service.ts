@@ -300,4 +300,90 @@ export class PermissionService {
       data: updateData,
     });
   }
+
+  async remove(id: number) {
+    const permission = await this.prismaService.permission.findUnique({
+      where: { id, deleted: false },
+      include: {
+        permissionInRole: {
+          where: {
+            roles: {
+              deleted: false,
+            },
+          },
+        },
+        children: {
+          where: {
+            deleted: false,
+          },
+        },
+      },
+    });
+
+    if (!permission) {
+      throw new BadRequestException('权限不存在');
+    }
+
+    if (permission.permissionInRole.length > 0) {
+      throw new BadRequestException('该权限已被角色使用，不能删除');
+    }
+
+    if (permission.children.length > 0) {
+      throw new BadRequestException('该权限下存在子权限，不能删除');
+    }
+
+    await this.prismaService.permission.update({
+      where: { id },
+      data: {
+        deleted: true,
+      },
+    });
+  }
+
+  async batchRemove(ids: number[]) {
+    const permissions = await this.prismaService.permission.findMany({
+      where: {
+        id: {
+          in: ids,
+        },
+        deleted: false,
+      },
+      select: {
+        id: true,
+        permissionInRole: {
+          where: {
+            roles: {
+              deleted: false,
+            },
+          },
+        },
+        children: {
+          where: {
+            deleted: false,
+          },
+        },
+      },
+    });
+
+    const canRemovePermissions = permissions.filter((item) => {
+      return item.permissionInRole.length === 0 && item.children.length === 0;
+    });
+
+    if (canRemovePermissions.length < ids.length) {
+      throw new BadRequestException(
+        '部分权限已被角色使用或存在子权限，不能删除',
+      );
+    }
+
+    await this.prismaService.permission.updateMany({
+      where: {
+        id: {
+          in: ids,
+        },
+      },
+      data: {
+        deleted: true,
+      },
+    });
+  }
 }

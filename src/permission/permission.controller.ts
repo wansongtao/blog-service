@@ -19,6 +19,7 @@ import { CreatePermissionDto } from './dto/create-permission.dto';
 import { Authority } from 'src/common/decorator/authority.decorator';
 import { PermissionEntity } from './entities/permission.entity';
 import { UpdatePermissionDto } from './dto/update-permission.dto';
+import { RemovePermissionDto } from './dto/remove-permission.dto';
 
 @ApiTags('permission')
 @ApiBearerAuth()
@@ -68,5 +69,21 @@ export class PermissionController {
     @Body() updatePermissionDto: UpdatePermissionDto,
   ) {
     return this.permissionService.update(id, updatePermissionDto);
+  }
+
+  @ApiOperation({ summary: '批量删除权限' })
+  @ApiBaseResponse()
+  @Authority('system:menu:del')
+  @Patch('batch/delete')
+  batchRemove(@Body() data: RemovePermissionDto) {
+    return this.permissionService.batchRemove(data.ids);
+  }
+
+  @ApiOperation({ summary: '删除单个权限' })
+  @ApiBaseResponse()
+  @Authority('system:menu:del')
+  @Patch(':id/delete')
+  remove(@Param('id', ParseIntPipe) id: number) {
+    return this.permissionService.remove(id);
   }
 }

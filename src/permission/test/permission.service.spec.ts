@@ -2,6 +2,7 @@ import { TestBed } from '@automock/jest';
 import { PermissionService } from '../permission.service';
 import { PrismaService } from 'nestjs-prisma';
 import { CreatePermissionDto } from '../dto/create-permission.dto';
+import { UpdatePermissionDto } from '../dto/update-permission.dto';
 
 describe('PermissionService', () => {
   let permissionService: PermissionService;
@@ -376,6 +377,103 @@ describe('PermissionService', () => {
       const result = await permissionService.findOne(1);
 
       expect(result).toBeNull();
+    });
+  });
+
+  describe('update', () => {
+    it('should throw error when permission not found', async () => {
+      const mockFindUnique = prismaService.permission.findUnique as jest.Mock;
+      mockFindUnique.mockResolvedValue(null);
+
+      await expect(permissionService.update(1, {})).rejects.toThrow(
+        '权限不存在',
+      );
+    });
+
+    it('should throw error when updating sensitive fields of used permission', async () => {
+      const mockPermission = {
+        id: 1,
+        type: 'MENU',
+        permission: 'test:permission',
+        pid: 0,
+        permissionInRole: [
+          {
+            roles: {
+              roleInUser: [{ userId: '1' }],
+            },
+          },
+        ],
+      };
+
+      const mockFindUnique = prismaService.permission.findUnique as jest.Mock;
+      mockFindUnique.mockResolvedValue(mockPermission);
+
+      const updateDto: UpdatePermissionDto = {
+        type: 'BUTTON',
+        permission: 'test:new',
+        pid: 1,
+      };
+
+      await expect(permissionService.update(1, updateDto)).rejects.toThrow(
+        '该权限已被角色使用，不能修改类型、权限标识、父权限',
+      );
+    });
+
+    it('should update permission with safe fields', async () => {
+      const mockPermission = {
+        id: 1,
+        permissionInRole: [],
+      };
+
+      const mockFindUnique = prismaService.permission.findUnique as jest.Mock;
+      mockFindUnique.mockResolvedValue(mockPermission);
+
+      const mockUpdate = prismaService.permission.update as jest.Mock;
+
+      const updateDto: UpdatePermissionDto = {
+        name: 'updated',
+        icon: 'new-icon',
+        path: '/new-path',
+        sort: 2,
+      };
+
+      await permissionService.update(1, updateDto);
+
+      expect(mockUpdate).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: updateDto,
+      });
+    });
+
+    it('should delete user permission cache when enabling permission', async () => {
+      const mockPermission = {
+        id: 1,
+        permissionInRole: [
+          {
+            roles: {
+              roleInUser: [{ userId: '1' }, { userId: '2' }],
+            },
+          },
+        ],
+      };
+
+      const mockFindUnique = prismaService.permission.findUnique as jest.Mock;
+      mockFindUnique.mockResolvedValue(mockPermission);
+
+      const mockUpdate = prismaService.permission.update as jest.Mock;
+      const mockDelCache = jest.spyOn(
+        permissionService['redisService'],
+        'delUserPermission',
+      );
+
+      await permissionService.update(1, { disabled: false });
+
+      expect(mockDelCache).toHaveBeenNthCalledWith(1, '1');
+      expect(mockDelCache).toHaveBeenNthCalledWith(2, '2');
+      expect(mockUpdate).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { disabled: false },
+      });
     });
   });
 });

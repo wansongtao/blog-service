@@ -199,4 +199,41 @@ describe('PermissionController', () => {
       expect(permissionService.findOne).toHaveBeenCalledWith(mockId);
     });
   });
+
+  describe('update', () => {
+    const mockId = 1;
+    const mockUpdateDto = {
+      name: 'updated',
+      type: 'MENU' as const,
+      permission: 'test:updated',
+      icon: 'updated-icon',
+      path: '/updated',
+      sort: 2,
+    };
+
+    it('should update a permission', async () => {
+      permissionService.update.mockResolvedValue(null);
+
+      await controller.update(mockId, mockUpdateDto);
+
+      expect(permissionService.update).toHaveBeenCalledWith(
+        mockId,
+        mockUpdateDto,
+      );
+      expect(permissionService.update).toHaveBeenCalledTimes(1);
+    });
+
+    it('should handle update errors', async () => {
+      const error = new Error('Update failed');
+      permissionService.update.mockRejectedValue(error);
+
+      await expect(controller.update(mockId, mockUpdateDto)).rejects.toThrow(
+        error,
+      );
+      expect(permissionService.update).toHaveBeenCalledWith(
+        mockId,
+        mockUpdateDto,
+      );
+    });
+  });
 });

@@ -156,4 +156,47 @@ describe('PermissionController', () => {
       expect(permissionService.create).toHaveBeenCalledWith(mockCreateDto);
     });
   });
+
+  describe('findOne', () => {
+    const mockId = 1;
+    const mockPermission = {
+      id: 1,
+      pid: 0,
+      name: 'test1',
+      type: 'MENU' as const,
+      permission: 'test:1',
+      icon: 'icon1',
+      path: '/test1',
+      sort: 1,
+      disabled: false,
+      createdAt: '2022-02-02T00:00:00.000Z',
+    };
+
+    it('should return a permission by id', async () => {
+      permissionService.findOne.mockResolvedValue(mockPermission as any);
+
+      const result = await controller.findOne(mockId);
+
+      expect(permissionService.findOne).toHaveBeenCalledWith(mockId);
+      expect(result).toEqual(mockPermission);
+      expect(permissionService.findOne).toHaveBeenCalledTimes(1);
+    });
+
+    it('should handle not found permission', async () => {
+      permissionService.findOne.mockResolvedValue(null);
+
+      const result = await controller.findOne(mockId);
+
+      expect(permissionService.findOne).toHaveBeenCalledWith(mockId);
+      expect(result).toBeNull();
+    });
+
+    it('should handle errors when getting permission', async () => {
+      const error = new Error('Failed to get permission');
+      permissionService.findOne.mockRejectedValue(error);
+
+      await expect(controller.findOne(mockId)).rejects.toThrow(error);
+      expect(permissionService.findOne).toHaveBeenCalledWith(mockId);
+    });
+  });
 });

@@ -321,4 +321,61 @@ describe('PermissionService', () => {
       });
     });
   });
+
+  describe('findOne', () => {
+    it('should return permission when found', async () => {
+      const mockPermission = {
+        pid: 1,
+        name: 'test',
+        type: 'MENU',
+        path: '/test',
+        permission: 'test:permission',
+        icon: 'icon',
+        cache: true,
+        props: true,
+        hidden: false,
+        component: 'Test',
+        disabled: false,
+        redirect: '/redirect',
+        sort: 1,
+      };
+
+      const mockFindUnique = prismaService.permission.findUnique as jest.Mock;
+      mockFindUnique.mockResolvedValue(mockPermission);
+
+      const result = await permissionService.findOne(1);
+
+      expect(result).toEqual(mockPermission);
+      expect(mockFindUnique).toHaveBeenCalledWith({
+        where: {
+          id: 1,
+          deleted: false,
+        },
+        select: {
+          pid: true,
+          name: true,
+          type: true,
+          path: true,
+          permission: true,
+          icon: true,
+          cache: true,
+          props: true,
+          hidden: true,
+          component: true,
+          disabled: true,
+          redirect: true,
+          sort: true,
+        },
+      });
+    });
+
+    it('should return null when permission not found', async () => {
+      const mockFindUnique = prismaService.permission.findUnique as jest.Mock;
+      mockFindUnique.mockResolvedValue(null);
+
+      const result = await permissionService.findOne(1);
+
+      expect(result).toBeNull();
+    });
+  });
 });

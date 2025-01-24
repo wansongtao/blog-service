@@ -365,6 +365,10 @@ export class PermissionService {
       },
     });
 
+    if (!permissions?.length) {
+      throw new BadRequestException('权限不存在');
+    }
+
     const canRemovePermissions = permissions.filter((item) => {
       return item.permissionInRole.length === 0 && item.children.length === 0;
     });

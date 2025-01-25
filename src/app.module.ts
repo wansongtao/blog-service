@@ -19,6 +19,7 @@ import { JwtAuthGuard } from './common/guard/jwt-auth.guard';
 import { PermissionModule } from './permission/permission.module';
 import { AuthorityGuard } from './common/guard/authority.guard';
 import { UploadModule } from './upload/upload.module';
+import { RoleModule } from './role/role.module';
 
 @Module({
   imports: [
@@ -126,6 +127,7 @@ import { UploadModule } from './upload/upload.module';
     RedisModule,
     PermissionModule,
     UploadModule,
+    RoleModule,
   ],
   providers: [
     {

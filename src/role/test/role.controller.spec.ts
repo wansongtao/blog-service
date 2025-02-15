@@ -75,4 +75,34 @@ describe('RoleController', () => {
       );
     });
   });
+
+  describe('findOne', () => {
+    const mockId = 1;
+    const mockResult = {
+      id: 1,
+      name: 'admin',
+      description: 'Admin role',
+      disabled: false,
+      createdAt: '2023-01-01 00:00:00',
+      updatedAt: '2023-01-01 00:00:00',
+      permissions: [1, 2],
+    };
+
+    it('should return role detail', async () => {
+      service.findOne.mockResolvedValue(mockResult);
+
+      const result = await controller.findOne(mockId);
+
+      expect(service.findOne).toHaveBeenCalledWith(mockId);
+      expect(result).toEqual(mockResult);
+    });
+
+    it('should throw error when role not found', async () => {
+      service.findOne.mockRejectedValue(new Error('Role not found'));
+
+      await expect(controller.findOne(mockId)).rejects.toThrow(
+        'Role not found',
+      );
+    });
+  });
 });

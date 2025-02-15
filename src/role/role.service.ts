@@ -92,4 +92,41 @@ export class RoleService {
       data,
     });
   }
+
+  async findOne(id: number) {
+    const role = await this.prismaService.role.findUnique({
+      where: {
+        id,
+        deleted: false,
+      },
+      include: {
+        permissionInRole: {
+          where: {
+            permissions: {
+              deleted: false,
+            },
+          },
+          select: {
+            permissionId: true,
+          },
+        },
+      },
+    });
+
+    if (!role) {
+      throw new BadRequestException('该角色不存在');
+    }
+
+    const permissions = role.permissionInRole.map(
+      (roleInPermission) => roleInPermission.permissionId,
+    );
+
+    return {
+      id: role.id,
+      name: role.name,
+      description: role.description,
+      disabled: role.disabled,
+      permissions,
+    };
+  }
 }

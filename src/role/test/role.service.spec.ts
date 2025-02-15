@@ -5,9 +5,10 @@ import { PrismaService } from 'nestjs-prisma';
 
 describe('RoleService', () => {
   let roleService: RoleService;
+  let prismaService: jest.Mocked<PrismaService>;
 
   beforeEach(async () => {
-    const { unit } = TestBed.create(RoleService)
+    const { unit, unitRef } = TestBed.create(RoleService)
       .mock(PrismaService)
       .using({
         role: {
@@ -19,6 +20,7 @@ describe('RoleService', () => {
       .compile();
 
     roleService = unit;
+    prismaService = unitRef.get(PrismaService);
   });
 
   it('should be defined', () => {
@@ -101,27 +103,24 @@ describe('RoleService', () => {
         disabled: false,
       };
 
-      jest
-        .spyOn(roleService['prismaService'].role, 'findUnique')
-        .mockResolvedValue({
-          id: 1,
-          name: 'admin',
-          disabled: false,
-          deleted: false,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          description: 'Admin role',
-        });
+      const mockFindUnique = prismaService.role.findUnique as jest.Mock;
+      mockFindUnique.mockResolvedValue({
+        id: 1,
+        name: 'admin',
+        disabled: false,
+        deleted: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        description: 'Admin role',
+      });
 
       await expect(roleService.create(createRoleDto)).rejects.toThrow(
         '该角色已存在',
       );
-      expect(roleService['prismaService'].role.findUnique).toHaveBeenCalledWith(
-        {
-          where: { name: createRoleDto.name },
-          select: { id: true },
-        },
-      );
+      expect(mockFindUnique).toHaveBeenCalledWith({
+        where: { name: createRoleDto.name },
+        select: { id: true },
+      });
     });
 
     it('should create role without permissions successfully', async () => {
@@ -131,16 +130,15 @@ describe('RoleService', () => {
         disabled: false,
       };
 
-      jest
-        .spyOn(roleService['prismaService'].role, 'findUnique')
-        .mockResolvedValue(null);
-      jest
-        .spyOn(roleService['prismaService'].role, 'create')
-        .mockResolvedValue(undefined);
+      const mockFindUnique = prismaService.role.findUnique as jest.Mock;
+      mockFindUnique.mockResolvedValue(null);
+
+      const mockCreate = prismaService.role.create as jest.Mock;
+      mockCreate.mockResolvedValue(undefined);
 
       await roleService.create(createRoleDto);
 
-      expect(roleService['prismaService'].role.create).toHaveBeenCalledWith({
+      expect(mockCreate).toHaveBeenCalledWith({
         data: createRoleDto,
       });
     });
@@ -153,16 +151,15 @@ describe('RoleService', () => {
         permissions: [1, 2],
       };
 
-      jest
-        .spyOn(roleService['prismaService'].role, 'findUnique')
-        .mockResolvedValue(null);
-      jest
-        .spyOn(roleService['prismaService'].role, 'create')
-        .mockResolvedValue(undefined);
+      const mockFindUnique = prismaService.role.findUnique as jest.Mock;
+      mockFindUnique.mockResolvedValue(null);
+
+      const mockCreate = prismaService.role.create as jest.Mock;
+      mockCreate.mockResolvedValue(undefined);
 
       await roleService.create(createRoleDto);
 
-      expect(roleService['prismaService'].role.create).toHaveBeenCalledWith({
+      expect(mockCreate).toHaveBeenCalledWith({
         data: {
           name: createRoleDto.name,
           description: createRoleDto.description,
@@ -173,6 +170,85 @@ describe('RoleService', () => {
             })),
           },
         },
+      });
+    });
+  });
+
+  describe('findOne', () => {
+    it('should throw BadRequestException if role does not exist', async () => {
+      const mockFindUnique = prismaService.role.findUnique as jest.Mock;
+      mockFindUnique.mockResolvedValue(null);
+
+      await expect(roleService.findOne(1)).rejects.toThrow('该角色不存在');
+      expect(mockFindUnique).toHaveBeenCalledWith({
+        where: {
+          id: 1,
+          deleted: false,
+        },
+        include: {
+          permissionInRole: {
+            where: {
+              permissions: {
+                deleted: false,
+              },
+            },
+            select: {
+              permissionId: true,
+            },
+          },
+        },
+      });
+    });
+
+    it('should return role with permissions', async () => {
+      const mockRole = {
+        id: 1,
+        name: 'admin',
+        description: 'Admin role',
+        disabled: false,
+        deleted: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        permissionInRole: [{ permissionId: 1 }, { permissionId: 2 }],
+      };
+
+      const mockFindUnique = prismaService.role.findUnique as jest.Mock;
+      mockFindUnique.mockResolvedValue(mockRole);
+
+      const result = await roleService.findOne(1);
+
+      expect(result).toEqual({
+        id: mockRole.id,
+        name: mockRole.name,
+        description: mockRole.description,
+        disabled: mockRole.disabled,
+        permissions: [1, 2],
+      });
+    });
+
+    it('should return role without permissions', async () => {
+      const mockRole = {
+        id: 1,
+        name: 'admin',
+        description: 'Admin role',
+        disabled: false,
+        deleted: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        permissionInRole: [],
+      };
+
+      const mockFindUnique = prismaService.role.findUnique as jest.Mock;
+      mockFindUnique.mockResolvedValue(mockRole);
+
+      const result = await roleService.findOne(1);
+
+      expect(result).toEqual({
+        id: mockRole.id,
+        name: mockRole.name,
+        description: mockRole.description,
+        disabled: mockRole.disabled,
+        permissions: [],
       });
     });
   });

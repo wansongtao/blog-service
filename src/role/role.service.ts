@@ -1,7 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from 'nestjs-prisma';
 import { QueryRoleDto } from './dto/query-role.dto';
 import { Prisma } from '@prisma/client';
+import { CreateRoleDto } from './dto/create-role.dto';
 
 @Injectable()
 export class RoleService {
@@ -59,5 +60,36 @@ export class RoleService {
       })),
       total: results[1],
     };
+  }
+
+  async create(createRoleDto: CreateRoleDto) {
+    const role = await this.prismaService.role.findUnique({
+      where: {
+        name: createRoleDto.name,
+      },
+      select: {
+        id: true,
+      },
+    });
+    if (role) {
+      throw new BadRequestException('该角色已存在');
+    }
+
+    const data: Prisma.RoleCreateInput = {
+      name: createRoleDto.name,
+      description: createRoleDto.description,
+      disabled: createRoleDto.disabled,
+    };
+    if (createRoleDto.permissions?.length) {
+      data.permissionInRole = {
+        create: createRoleDto.permissions.map((permissionId) => ({
+          permissionId,
+        })),
+      };
+    }
+
+    await this.prismaService.role.create({
+      data,
+    });
   }
 }

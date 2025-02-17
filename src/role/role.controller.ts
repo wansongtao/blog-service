@@ -4,6 +4,7 @@ import {
   Get,
   Param,
   ParseIntPipe,
+  Patch,
   Post,
   Query,
 } from '@nestjs/common';
@@ -15,6 +16,7 @@ import { ApiBaseResponse } from 'src/common/decorator/api-base-response.decorato
 import { Authority } from 'src/common/decorator/authority.decorator';
 import { CreateRoleDto } from './dto/create-role.dto';
 import { RoleDetailEntity } from './entities/role-detail.entity';
+import { UpdateRoleDto } from './dto/update-role.dto';
 
 @ApiTags('role')
 @ApiBearerAuth()
@@ -42,5 +44,16 @@ export class RoleController {
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number): Promise<RoleDetailEntity> {
     return this.roleService.findOne(id);
+  }
+
+  @ApiOperation({ summary: '更新角色信息' })
+  @ApiBaseResponse()
+  @Authority('system:role:edit')
+  @Patch(':id')
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateRoleDto: UpdateRoleDto,
+  ) {
+    return this.roleService.update(id, updateRoleDto);
   }
 }

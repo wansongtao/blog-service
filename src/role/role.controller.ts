@@ -56,4 +56,12 @@ export class RoleController {
   ) {
     return this.roleService.update(id, updateRoleDto);
   }
+
+  @ApiOperation({ summary: '删除角色' })
+  @ApiBaseResponse()
+  @Authority('system:role:del')
+  @Patch(':id/delete')
+  remove(@Param('id', ParseIntPipe) id: number) {
+    return this.roleService.remove(id);
+  }
 }

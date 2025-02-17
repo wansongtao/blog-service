@@ -213,4 +213,41 @@ export class RoleService {
       data,
     });
   }
+
+  async remove(id: number) {
+    const roleAndUser = await this.prismaService.role.findUnique({
+      where: {
+        id,
+        deleted: false,
+      },
+      include: {
+        roleInUser: {
+          select: {
+            userId: true,
+          },
+          where: {
+            users: {
+              deleted: false,
+            },
+          },
+        },
+      },
+    });
+    if (!roleAndUser) {
+      throw new BadRequestException('角色不存在');
+    }
+
+    if (roleAndUser.roleInUser?.length) {
+      throw new BadRequestException('该角色已被用户使用，不允许删除');
+    }
+
+    await this.prismaService.role.update({
+      where: {
+        id,
+      },
+      data: {
+        deleted: true,
+      },
+    });
+  }
 }

@@ -292,4 +292,113 @@ describe('UserService', () => {
       });
     });
   });
+
+  describe('findAll', () => {
+    it('should return empty list when no users found', async () => {
+      // Arrange
+      const mockTransaction = prismaService.$transaction as jest.Mock;
+      mockTransaction.mockResolvedValue([[], 0]);
+      const queryParams = { page: 1, pageSize: 10 };
+
+      // Act
+      const result = await userService.findAll(queryParams);
+
+      // Assert
+      expect(result).toEqual({ list: [], total: 0 });
+      expect(mockTransaction).toHaveBeenCalled();
+    });
+
+    it('should return user list with correct format', async () => {
+      // Arrange
+      const mockTransaction = prismaService.$transaction as jest.Mock;
+      const mockUsers = [
+        {
+          id: 'test1',
+          userName: 'testUser1',
+          disabled: false,
+          createdAt: new Date('2023-01-01'),
+          updatedAt: new Date('2023-01-01'),
+          profile: {
+            nickName: 'Test Nick',
+            avatar: 'test.jpg',
+          },
+          roleInUser: [
+            {
+              roles: {
+                name: 'admin',
+              },
+            },
+          ],
+        },
+      ];
+      mockTransaction.mockResolvedValue([mockUsers, 1]);
+
+      const queryParams = {
+        page: 1,
+        pageSize: 10,
+        keyword: 'test',
+        disabled: false,
+        beginTime: '2023-01-01',
+        endTime: '2023-12-31',
+        sort: 'desc' as const,
+      };
+
+      // Act
+      const result = await userService.findAll(queryParams);
+
+      // Assert
+      expect(result).toEqual({
+        list: [
+          {
+            id: 'test1',
+            userName: 'testUser1',
+            disabled: false,
+            createdAt: '2023-01-01T00:00:00.000Z',
+            updatedAt: '2023-01-01T00:00:00.000Z',
+            nickName: 'Test Nick',
+            avatar: 'test.jpg',
+            roleNames: ['admin'],
+          },
+        ],
+        total: 1,
+      });
+    });
+
+    it('should handle empty profile and roles', async () => {
+      // Arrange
+      const mockTransaction = prismaService.$transaction as jest.Mock;
+      const mockUsers = [
+        {
+          id: 'test1',
+          userName: 'testUser1',
+          disabled: false,
+          createdAt: new Date('2023-01-01'),
+          updatedAt: new Date('2023-01-01'),
+          profile: null,
+          roleInUser: [],
+        },
+      ];
+      mockTransaction.mockResolvedValue([mockUsers, 1]);
+
+      // Act
+      const result = await userService.findAll({});
+
+      // Assert
+      expect(result).toEqual({
+        list: [
+          {
+            id: 'test1',
+            userName: 'testUser1',
+            disabled: false,
+            createdAt: '2023-01-01T00:00:00.000Z',
+            updatedAt: '2023-01-01T00:00:00.000Z',
+            nickName: undefined,
+            avatar: undefined,
+            roleNames: [],
+          },
+        ],
+        total: 1,
+      });
+    });
+  });
 });

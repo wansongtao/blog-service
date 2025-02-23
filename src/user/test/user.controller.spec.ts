@@ -152,4 +152,63 @@ describe('UserController', () => {
       ).rejects.toThrow(errorMessage);
     });
   });
+
+  describe('findAll', () => {
+    const mockQuery = {
+      page: 1,
+      pageSize: 10,
+      keyword: 'test',
+    };
+
+    const mockUserList = {
+      total: 1,
+      list: [
+        {
+          id: 'testUser',
+          userName: 'testUser',
+          nickName: 'testNickName',
+          disabled: false,
+          avatar: 'testAvatar',
+          roleNames: ['admin'],
+          createdAt: '2023-01-01',
+          updatedAt: '2023-01-01',
+        },
+      ],
+    };
+
+    it('should return user list', async () => {
+      userService.findAll.mockResolvedValue(mockUserList);
+
+      const result = await userController.findAll(mockQuery);
+
+      expect(result).toEqual(mockUserList);
+      expect(userService.findAll).toHaveBeenCalledWith(mockQuery);
+      expect(userService.findAll).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return empty list when no users found', async () => {
+      const emptyList = {
+        total: 0,
+        list: [],
+      };
+      userService.findAll.mockResolvedValue(emptyList);
+
+      const result = await userController.findAll(mockQuery);
+
+      expect(result).toEqual(emptyList);
+      expect(userService.findAll).toHaveBeenCalledWith(mockQuery);
+    });
+
+    it('should handle pagination correctly', async () => {
+      const paginationQuery = {
+        page: 2,
+        pageSize: 5,
+      };
+      userService.findAll.mockResolvedValue(mockUserList);
+
+      await userController.findAll(paginationQuery);
+
+      expect(userService.findAll).toHaveBeenCalledWith(paginationQuery);
+    });
+  });
 });

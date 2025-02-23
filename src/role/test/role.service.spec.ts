@@ -252,4 +252,213 @@ describe('RoleService', () => {
       });
     });
   });
+
+  describe('update', () => {
+    it('should throw BadRequestException if role name already exists', async () => {
+      const updateRoleDto = {
+        name: 'admin',
+      };
+
+      const mockFindUnique = prismaService.role.findUnique as jest.Mock;
+      mockFindUnique.mockResolvedValueOnce({
+        id: 2,
+        name: 'admin',
+      });
+
+      await expect(roleService.update(1, updateRoleDto)).rejects.toThrow(
+        '该角色名称已存在',
+      );
+      expect(mockFindUnique).toHaveBeenCalledWith({
+        where: { name: updateRoleDto.name },
+      });
+    });
+
+    it('should throw BadRequestException if role does not exist', async () => {
+      const updateRoleDto = {
+        name: 'editor',
+      };
+
+      const mockFindUnique = prismaService.role.findUnique as jest.Mock;
+      mockFindUnique
+        .mockResolvedValueOnce(null) // First call for name check
+        .mockResolvedValueOnce(null); // Second call for role existence check
+
+      await expect(roleService.update(1, updateRoleDto)).rejects.toThrow(
+        '角色不存在',
+      );
+    });
+
+    it('should throw BadRequestException when trying to disable role in use', async () => {
+      const updateRoleDto = {
+        disabled: true,
+      };
+
+      const mockFindUnique = prismaService.role.findUnique as jest.Mock;
+      mockFindUnique.mockResolvedValueOnce({
+        roleInUser: [{ userId: 1 }],
+        id: 1,
+      });
+
+      await expect(roleService.update(1, updateRoleDto)).rejects.toThrow(
+        '该角色已被用户使用，不能禁用',
+      );
+    });
+
+    it('should update role successfully', async () => {
+      const updateRoleDto = {
+        name: 'editor',
+        description: 'Updated description',
+        disabled: false,
+        permissions: [1, 2],
+      };
+
+      const mockFindUnique = prismaService.role.findUnique as jest.Mock;
+      mockFindUnique.mockResolvedValueOnce(null).mockResolvedValueOnce({
+        roleInUser: [],
+      });
+
+      const mockUpdate = jest.fn().mockResolvedValue(undefined);
+      prismaService.role.update = mockUpdate;
+
+      await roleService.update(1, updateRoleDto);
+
+      expect(mockUpdate).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: {
+          name: updateRoleDto.name,
+          description: updateRoleDto.description,
+          disabled: updateRoleDto.disabled,
+          permissionInRole: {
+            deleteMany: {},
+            create: updateRoleDto.permissions.map((permissionId) => ({
+              permissionId,
+            })),
+          },
+        },
+      });
+    });
+
+    it('should update role without permissions', async () => {
+      const updateRoleDto = {
+        name: 'editor',
+        description: 'Updated description',
+      };
+
+      const mockFindUnique = prismaService.role.findUnique as jest.Mock;
+      mockFindUnique.mockResolvedValueOnce(null).mockResolvedValueOnce({
+        roleInUser: [],
+      });
+
+      const mockUpdate = jest.fn().mockResolvedValue(undefined);
+      prismaService.role.update = mockUpdate;
+
+      await roleService.update(1, updateRoleDto);
+
+      expect(mockUpdate).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: {
+          name: updateRoleDto.name,
+          description: updateRoleDto.description,
+        },
+      });
+    });
+
+    it('should update role and clear redis cache when updating permissions of role in use', async () => {
+      const updateRoleDto = {
+        name: 'editor',
+        permissions: [1, 2, 3],
+      };
+
+      const mockRoleInUser = {
+        id: 1,
+        roleInUser: [{ userId: 1 }, { userId: 2 }],
+      };
+
+      const mockFindUnique = prismaService.role.findUnique as jest.Mock;
+      mockFindUnique
+        .mockResolvedValueOnce(null) // First call for name check
+        .mockResolvedValueOnce(mockRoleInUser); // Second call for role existence
+
+      const mockDelUserPermission = jest.fn();
+      roleService['redisService'].delUserPermission = mockDelUserPermission;
+
+      const mockUpdate = jest.fn().mockResolvedValue(undefined);
+      prismaService.role.update = mockUpdate;
+
+      await roleService.update(1, updateRoleDto);
+
+      expect(mockDelUserPermission).toHaveBeenCalledWith(1);
+      expect(mockDelUserPermission).toHaveBeenCalledWith(2);
+
+      expect(mockUpdate).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: {
+          name: updateRoleDto.name,
+          permissionInRole: {
+            deleteMany: {},
+            create: updateRoleDto.permissions.map((permissionId) => ({
+              permissionId,
+            })),
+          },
+        },
+      });
+    });
+  });
+
+  describe('remove', () => {
+    it('should throw BadRequestException if role does not exist', async () => {
+      const mockFindUnique = prismaService.role.findUnique as jest.Mock;
+      mockFindUnique.mockResolvedValue(null);
+
+      await expect(roleService.remove(1)).rejects.toThrow('角色不存在');
+      expect(mockFindUnique).toHaveBeenCalledWith({
+        where: {
+          id: 1,
+          deleted: false,
+        },
+        include: {
+          roleInUser: {
+            select: {
+              userId: true,
+            },
+            where: {
+              users: {
+                deleted: false,
+              },
+            },
+          },
+        },
+      });
+    });
+
+    it('should throw BadRequestException if role is in use', async () => {
+      const mockFindUnique = prismaService.role.findUnique as jest.Mock;
+      mockFindUnique.mockResolvedValue({
+        id: 1,
+        roleInUser: [{ userId: 1 }],
+      });
+
+      await expect(roleService.remove(1)).rejects.toThrow(
+        '该角色已被用户使用，不允许删除',
+      );
+    });
+
+    it('should soft delete role successfully', async () => {
+      const mockFindUnique = prismaService.role.findUnique as jest.Mock;
+      mockFindUnique.mockResolvedValue({
+        id: 1,
+        roleInUser: [],
+      });
+
+      const mockUpdate = jest.fn().mockResolvedValue(undefined);
+      prismaService.role.update = mockUpdate;
+
+      await roleService.remove(1);
+
+      expect(mockUpdate).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { deleted: true },
+      });
+    });
+  });
 });

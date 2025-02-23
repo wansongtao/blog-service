@@ -105,4 +105,49 @@ describe('RoleController', () => {
       );
     });
   });
+
+  describe('update', () => {
+    const mockId = 1;
+    const mockBody = {
+      name: 'admin',
+      description: 'Updated role',
+      permissions: [1, 2, 3],
+    };
+
+    it('should update role successfully', async () => {
+      service.update.mockResolvedValue(undefined);
+
+      await controller.update(mockId, mockBody);
+
+      expect(service.update).toHaveBeenCalledWith(mockId, mockBody);
+    });
+
+    it('should throw error when update role failed', async () => {
+      service.update.mockRejectedValue(new Error('Update role failed'));
+
+      await expect(controller.update(mockId, mockBody)).rejects.toThrow(
+        'Update role failed',
+      );
+    });
+  });
+
+  describe('remove', () => {
+    const mockId = 1;
+
+    it('should remove role successfully', async () => {
+      service.remove.mockResolvedValue(undefined);
+
+      await controller.remove(mockId);
+
+      expect(service.remove).toHaveBeenCalledWith(mockId);
+    });
+
+    it('should throw error when remove role failed', async () => {
+      service.remove.mockRejectedValue(new Error('Remove role failed'));
+
+      await expect(controller.remove(mockId)).rejects.toThrow(
+        'Remove role failed',
+      );
+    });
+  });
 });

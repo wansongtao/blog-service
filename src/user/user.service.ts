@@ -11,6 +11,8 @@ import { UserPermissionInfoEntity } from './entities/user-permission-info.entity
 import { UserProfileEntity } from './entities/user-profile.entity';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UpdatePasswordDto } from './dto/update-password.dto';
+import { QueryUserDto } from './dto/query-user.dto';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class UserService {
@@ -149,5 +151,77 @@ export class UserService {
       where: { id: userId },
       data: { password: hashPassword },
     });
+  }
+
+  async findAll(queryUserDto: QueryUserDto) {
+    const {
+      disabled,
+      keyword,
+      page = 1,
+      pageSize = 10,
+      beginTime,
+      endTime,
+      sort = 'desc',
+    } = queryUserDto;
+
+    const where: Prisma.UserWhereInput = {
+      deleted: false,
+      disabled,
+      createdAt: {
+        gte: beginTime,
+        lte: endTime,
+      },
+      OR: [
+        { userName: { contains: keyword, mode: 'insensitive' } },
+        { profile: { nickName: { contains: keyword, mode: 'insensitive' } } },
+      ],
+    };
+
+    const users = await this.prismaService.$transaction([
+      this.prismaService.user.findMany({
+        where,
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        orderBy: { createdAt: sort },
+        select: {
+          id: true,
+          userName: true,
+          disabled: true,
+          createdAt: true,
+          updatedAt: true,
+          profile: {
+            select: {
+              nickName: true,
+              avatar: true,
+            },
+          },
+          roleInUser: {
+            select: {
+              roles: {
+                select: {
+                  name: true,
+                },
+              },
+            },
+          },
+        },
+      }),
+      this.prismaService.user.count({ where }),
+    ]);
+
+    const userList = users[0].map((user) => {
+      return {
+        id: user.id,
+        userName: user.userName,
+        disabled: user.disabled,
+        createdAt: user.createdAt.toISOString(),
+        updatedAt: user.updatedAt.toISOString(),
+        nickName: user.profile?.nickName,
+        avatar: user.profile?.avatar,
+        roleNames: user.roleInUser.map((roleInUser) => roleInUser.roles.name),
+      };
+    });
+
+    return { list: userList, total: users[1] };
   }
 }

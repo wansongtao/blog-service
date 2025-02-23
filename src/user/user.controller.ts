@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Patch, Req } from '@nestjs/common';
+import { Body, Controller, Get, Patch, Query, Req } from '@nestjs/common';
 import { UserService } from './user.service';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ApiBaseResponse } from 'src/common/decorator/api-base-response.decorator';
@@ -6,12 +6,23 @@ import { UserProfileEntity } from './entities/user-profile.entity';
 import { IPayload } from 'src/common/types';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UpdatePasswordDto } from './dto/update-password.dto';
+import { UserListEntity } from './entities/user-list.entity';
+import { QueryUserDto } from './dto/query-user.dto';
 
 @ApiTags('user')
 @ApiBearerAuth()
 @Controller('user')
 export class UserController {
   constructor(private readonly userService: UserService) {}
+
+  @ApiOperation({
+    summary: '获取用户列表',
+  })
+  @ApiBaseResponse(UserListEntity)
+  @Get()
+  findAll(@Query() query: QueryUserDto): Promise<UserListEntity> {
+    return this.userService.findAll(query);
+  }
 
   @ApiOperation({
     summary: '获取当前用户个人信息',

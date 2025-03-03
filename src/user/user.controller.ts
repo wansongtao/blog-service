@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Patch, Query, Req } from '@nestjs/common';
+import { Body, Controller, Get, Patch, Post, Query, Req } from '@nestjs/common';
 import { UserService } from './user.service';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ApiBaseResponse } from 'src/common/decorator/api-base-response.decorator';
@@ -8,12 +8,24 @@ import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UpdatePasswordDto } from './dto/update-password.dto';
 import { UserListEntity } from './entities/user-list.entity';
 import { QueryUserDto } from './dto/query-user.dto';
+import { Authority } from 'src/common/decorator/authority.decorator';
+import { CreateUserDto } from './dto/create-user.dto';
 
 @ApiTags('user')
 @ApiBearerAuth()
 @Controller('user')
 export class UserController {
   constructor(private readonly userService: UserService) {}
+
+  @ApiOperation({
+    summary: '创建用户',
+  })
+  @ApiBaseResponse()
+  @Authority('system:user:add')
+  @Post()
+  create(@Body() createUserDto: CreateUserDto) {
+    return this.userService.create(createUserDto);
+  }
 
   @ApiOperation({
     summary: '获取用户列表',

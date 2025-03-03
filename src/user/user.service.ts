@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from 'nestjs-prisma';
-import bcrypt from 'bcrypt';
+import bcrypt, { hash } from 'bcrypt';
 import { ConfigService } from '@nestjs/config';
 import { getBaseConfig } from 'src/common/config';
 import { UserPermissionInfoEntity } from './entities/user-permission-info.entity';
@@ -13,6 +13,7 @@ import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UpdatePasswordDto } from './dto/update-password.dto';
 import { QueryUserDto } from './dto/query-user.dto';
 import { Prisma } from '@prisma/client';
+import { CreateUserDto } from './dto/create-user.dto';
 
 @Injectable()
 export class UserService {
@@ -20,6 +21,14 @@ export class UserService {
     private readonly prismaService: PrismaService,
     private readonly configService: ConfigService,
   ) {}
+
+  private generateHashPassword(password: string) {
+    return hash(password, getBaseConfig(this.configService).bcryptSaltRounds);
+  }
+
+  private getDefaultPassword() {
+    return getBaseConfig(this.configService).defaultAdmin.password;
+  }
 
   async findUser(userName: string): Promise<{
     id: string;
@@ -223,5 +232,38 @@ export class UserService {
     });
 
     return { list: userList, total: users[1] };
+  }
+
+  async create(createUserDto: CreateUserDto) {
+    const user = await this.prismaService.user.findUnique({
+      where: { userName: createUserDto.userName },
+      select: { id: true },
+    });
+    if (user) {
+      throw new BadRequestException('用户已存在');
+    }
+
+    const password = this.getDefaultPassword();
+    const hashedPassword = await this.generateHashPassword(password);
+
+    await this.prismaService.user.create({
+      data: {
+        userName: createUserDto.userName,
+        password: hashedPassword,
+        disabled: createUserDto.disabled,
+        profile: {
+          create: {
+            nickName: createUserDto.nickName,
+          },
+        },
+        roleInUser: createUserDto.roles && {
+          createMany: {
+            data: createUserDto.roles.map((roleId) => ({
+              roleId,
+            })),
+          },
+        },
+      },
+    });
   }
 }

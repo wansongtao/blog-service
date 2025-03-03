@@ -211,4 +211,54 @@ describe('UserController', () => {
       expect(userService.findAll).toHaveBeenCalledWith(paginationQuery);
     });
   });
+
+  describe('create', () => {
+    const mockCreateUserDto = {
+      userName: 'newUser',
+      password: 'password123',
+      roleIds: [1, 2],
+      nickName: 'New User',
+      gender: 'MA' as const,
+      phone: '1234567890',
+      email: 'test@example.com',
+      birthday: '1990-01-01',
+      description: 'New test user',
+    };
+
+    it('should create user successfully', async () => {
+      userService.create.mockResolvedValue(undefined);
+
+      await userController.create(mockCreateUserDto);
+
+      expect(userService.create).toHaveBeenCalledWith(mockCreateUserDto);
+      expect(userService.create).toHaveBeenCalledTimes(1);
+    });
+
+    it('should throw error when username already exists', async () => {
+      const errorMessage = '用户名已存在';
+      userService.create.mockRejectedValue(new Error(errorMessage));
+
+      await expect(userController.create(mockCreateUserDto)).rejects.toThrow(
+        errorMessage,
+      );
+    });
+
+    it('should throw error when role does not exist', async () => {
+      const errorMessage = '角色不存在';
+      userService.create.mockRejectedValue(new Error(errorMessage));
+
+      await expect(userController.create(mockCreateUserDto)).rejects.toThrow(
+        errorMessage,
+      );
+    });
+
+    it('should handle empty roleIds', async () => {
+      const userDtoWithoutRoles = { ...mockCreateUserDto, roleIds: [] };
+      userService.create.mockResolvedValue(undefined);
+
+      await userController.create(userDtoWithoutRoles);
+
+      expect(userService.create).toHaveBeenCalledWith(userDtoWithoutRoles);
+    });
+  });
 });

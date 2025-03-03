@@ -3,10 +3,12 @@ import { PrismaService } from 'nestjs-prisma';
 import { UserService } from '../user.service';
 import { User } from '@prisma/client';
 import bcrypt from 'bcrypt';
+import { ConfigService } from '@nestjs/config';
 
 describe('UserService', () => {
   let userService: UserService;
   let prismaService: jest.Mocked<PrismaService>;
+  let configService: jest.Mocked<ConfigService>;
 
   // 在每个测试用例执行前都会运行，确保每个测试用例都有一个全新的、干净的测试环境
   beforeEach(() => {
@@ -19,11 +21,17 @@ describe('UserService', () => {
         profile: {
           update: jest.fn(),
         },
+        $transaction: jest.fn(),
+      })
+      .mock(ConfigService)
+      .using({
+        get: jest.fn(),
       })
       .compile();
 
     userService = unit;
     prismaService = unitRef.get(PrismaService);
+    configService = unitRef.get(ConfigService);
   });
 
   describe('findUser', () => {
@@ -217,7 +225,115 @@ describe('UserService', () => {
     });
   });
 
+  describe('create', () => {
+    beforeEach(() => {
+      jest
+        .spyOn(userService as any, 'generateHashPassword')
+        .mockResolvedValue('hashedPassword');
+      jest
+        .spyOn(userService as any, 'getDefaultPassword')
+        .mockReturnValue('defaultPassword');
+    });
+
+    it('should throw BadRequestException when user already exists', async () => {
+      // Arrange
+      const mockFindUnique = prismaService.user.findUnique as jest.Mock;
+      mockFindUnique.mockResolvedValue({ id: 'existingId' });
+      const createUserDto = {
+        userName: 'existingUser',
+        disabled: false,
+        nickName: 'Test User',
+        roles: [1, 2],
+      };
+
+      // Act & Assert
+      await expect(userService.create(createUserDto)).rejects.toThrow(
+        '用户已存在',
+      );
+      expect(mockFindUnique).toHaveBeenCalledWith({
+        where: { userName: 'existingUser' },
+        select: { id: true },
+      });
+    });
+
+    it('should create user with roles when all inputs are valid', async () => {
+      // Arrange
+      const mockFindUnique = prismaService.user.findUnique as jest.Mock;
+      mockFindUnique.mockResolvedValue(null);
+
+      const mockCreate = prismaService.user.create as jest.Mock;
+      mockCreate.mockResolvedValue({});
+
+      const createUserDto = {
+        userName: 'newUser',
+        disabled: false,
+        nickName: 'New User',
+        roles: [1, 2],
+      };
+
+      // Act
+      await userService.create(createUserDto);
+
+      // Assert
+      expect(mockCreate).toHaveBeenCalledWith({
+        data: {
+          userName: 'newUser',
+          password: 'hashedPassword',
+          disabled: false,
+          profile: {
+            create: {
+              nickName: 'New User',
+            },
+          },
+          roleInUser: {
+            createMany: {
+              data: [{ roleId: 1 }, { roleId: 2 }],
+            },
+          },
+        },
+      });
+    });
+
+    it('should create user without roles when roles not provided', async () => {
+      // Arrange
+      const mockFindUnique = prismaService.user.findUnique as jest.Mock;
+      mockFindUnique.mockResolvedValue(null);
+
+      const mockCreate = prismaService.user.create as jest.Mock;
+      mockCreate.mockResolvedValue({});
+
+      const createUserDto = {
+        userName: 'newUser',
+        disabled: false,
+        nickName: 'New User',
+      };
+
+      // Act
+      await userService.create(createUserDto);
+
+      // Assert
+      expect(mockCreate).toHaveBeenCalledWith({
+        data: {
+          userName: 'newUser',
+          password: 'hashedPassword',
+          disabled: false,
+          profile: {
+            create: {
+              nickName: 'New User',
+            },
+          },
+          roleInUser: undefined,
+        },
+      });
+    });
+  });
+
   describe('updatePassword', () => {
+    beforeEach(() => {
+      jest.spyOn(bcrypt, 'compare').mockImplementation();
+      jest.spyOn(bcrypt, 'hash').mockImplementation();
+    });
+
     it('should throw BadRequestException when new password is same as old password', async () => {
       // Arrange
       const updatePasswordDto = {
@@ -227,7 +343,7 @@ describe('UserService', () => {
 
       // Act & Assert
       await expect(
-        userService.updatePassword('testId', updatePasswordDto),
+        userService.updatePassword('userId', updatePasswordDto),
       ).rejects.toThrow('新密码和原密码不能相同');
     });
 
@@ -235,6 +351,7 @@ describe('UserService', () => {
       // Arrange
       const mockFindUnique = prismaService.user.findUnique as jest.Mock;
       mockFindUnique.mockResolvedValue(null);
+
       const updatePasswordDto = {
         oldPassword: 'password123',
         newPassword: 'newPassword123',
@@ -242,16 +359,21 @@ describe('UserService', () => {
 
       // Act & Assert
       await expect(
-        userService.updatePassword('testId', updatePasswordDto),
+        userService.updatePassword('userId', updatePasswordDto),
       ).rejects.toThrow('用户不存在');
+      expect(mockFindUnique).toHaveBeenCalledWith({
+        where: { id: 'userId' },
+        select: { password: true },
+      });
     });
 
     it('should throw BadRequestException when old password is incorrect', async () => {
       // Arrange
       const mockFindUnique = prismaService.user.findUnique as jest.Mock;
-      mockFindUnique.mockResolvedValue({
-        password: 'hashedOldPassword',
-      });
+      mockFindUnique.mockResolvedValue({ password: 'hashedPassword' });
+
+      (bcrypt.compare as jest.Mock).mockResolvedValue(false);
+
       const updatePasswordDto = {
         oldPassword: 'wrongPassword',
         newPassword: 'newPassword123',
@@ -259,121 +381,155 @@ describe('UserService', () => {
 
       // Act & Assert
       await expect(
-        userService.updatePassword('testId', updatePasswordDto),
+        userService.updatePassword('userId', updatePasswordDto),
       ).rejects.toThrow('原密码错误');
+      expect(bcrypt.compare).toHaveBeenCalledWith(
+        'wrongPassword',
+        'hashedPassword',
+      );
     });
 
     it('should update password when all inputs are valid', async () => {
       // Arrange
       const mockFindUnique = prismaService.user.findUnique as jest.Mock;
+      mockFindUnique.mockResolvedValue({ password: 'hashedPassword' });
+
+      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+      (bcrypt.hash as jest.Mock).mockResolvedValue('newHashedPassword');
+
       const mockUpdate = prismaService.user.update as jest.Mock;
-      mockFindUnique.mockResolvedValue({
-        password: 'hashedOldPassword',
-      });
       mockUpdate.mockResolvedValue({});
+
       const updatePasswordDto = {
-        oldPassword: 'correctPassword',
+        oldPassword: 'correctOldPassword',
         newPassword: 'newPassword123',
       };
-      jest
-        .spyOn(bcrypt, 'compare')
-        .mockImplementation(() => Promise.resolve(true));
-      jest
-        .spyOn(bcrypt, 'hash')
-        .mockImplementation(() => Promise.resolve('newHashedPassword'));
+
+      configService.get.mockReturnValue(10);
 
       // Act
-      await userService.updatePassword('testId', updatePasswordDto);
+      await userService.updatePassword('userId', updatePasswordDto);
 
       // Assert
+      expect(bcrypt.compare).toHaveBeenCalledWith(
+        'correctOldPassword',
+        'hashedPassword',
+      );
+      expect(bcrypt.hash).toHaveBeenCalled();
       expect(mockUpdate).toHaveBeenCalledWith({
-        where: { id: 'testId' },
+        where: { id: 'userId' },
         data: { password: 'newHashedPassword' },
       });
     });
   });
 
   describe('findAll', () => {
-    it('should return empty list when no users found', async () => {
-      // Arrange
-      const mockTransaction = prismaService.$transaction as jest.Mock;
-      mockTransaction.mockResolvedValue([[], 0]);
-      const queryParams = { page: 1, pageSize: 10 };
-
-      // Act
-      const result = await userService.findAll(queryParams);
-
-      // Assert
-      expect(result).toEqual({ list: [], total: 0 });
-      expect(mockTransaction).toHaveBeenCalled();
-    });
-
-    it('should return user list with correct format', async () => {
+    it('should return paginated users with default parameters when no query parameters provided', async () => {
       // Arrange
       const mockTransaction = prismaService.$transaction as jest.Mock;
       const mockUsers = [
         {
-          id: 'test1',
-          userName: 'testUser1',
+          id: 'user1',
+          userName: 'user1',
           disabled: false,
           createdAt: new Date('2023-01-01'),
-          updatedAt: new Date('2023-01-01'),
+          updatedAt: new Date('2023-01-02'),
           profile: {
-            nickName: 'Test Nick',
-            avatar: 'test.jpg',
+            nickName: 'User One',
+            avatar: 'avatar1.jpg',
           },
           roleInUser: [
-            {
-              roles: {
-                name: 'admin',
-              },
-            },
+            { roles: { name: 'admin' } },
+            { roles: { name: 'user' } },
           ],
         },
       ];
       mockTransaction.mockResolvedValue([mockUsers, 1]);
 
-      const queryParams = {
-        page: 1,
-        pageSize: 10,
-        keyword: 'test',
-        disabled: false,
-        beginTime: '2023-01-01',
-        endTime: '2023-12-31',
-        sort: 'desc' as const,
-      };
-
       // Act
-      const result = await userService.findAll(queryParams);
+      const result = await userService.findAll({});
 
       // Assert
       expect(result).toEqual({
         list: [
           {
-            id: 'test1',
-            userName: 'testUser1',
+            id: 'user1',
+            userName: 'user1',
             disabled: false,
             createdAt: '2023-01-01T00:00:00.000Z',
-            updatedAt: '2023-01-01T00:00:00.000Z',
-            nickName: 'Test Nick',
-            avatar: 'test.jpg',
-            roleNames: ['admin'],
+            updatedAt: '2023-01-02T00:00:00.000Z',
+            nickName: 'User One',
+            avatar: 'avatar1.jpg',
+            roleNames: ['admin', 'user'],
           },
         ],
         total: 1,
       });
+      expect(prismaService.$transaction).toHaveBeenCalled();
     });
 
-    it('should handle empty profile and roles', async () => {
+    it('should apply filters when query parameters are provided', async () => {
+      // Arrange
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      const mockCount = jest.fn().mockResolvedValue(0);
+
+      prismaService.user.findMany = mockFindMany;
+      prismaService.user.count = mockCount;
+
+      const mockTransaction = prismaService.$transaction as jest.Mock;
+      mockTransaction.mockResolvedValue([[], 0]);
+
+      const queryParams = {
+        disabled: true,
+        keyword: 'test',
+        page: 2,
+        pageSize: 5,
+        beginTime: '2023-01-01T00:00:00.000Z',
+        endTime: '2023-12-31T23:59:59.999Z',
+        sort: 'asc' as const,
+      };
+
+      // Act
+      await userService.findAll(queryParams);
+
+      // Assert
+      expect(prismaService.$transaction).toHaveBeenCalled();
+
+      // Verify that the correct parameters are being passed to Prisma
+      expect(mockFindMany).toHaveBeenCalled();
+      const findManyArgs = mockFindMany.mock.calls[0][0];
+      expect(findManyArgs.skip).toBe(5);
+      expect(findManyArgs.take).toBe(5);
+      expect(findManyArgs.orderBy).toEqual({ createdAt: 'asc' });
+    });
+
+    it('should handle empty result', async () => {
+      // Arrange
+      const mockTransaction = prismaService.$transaction as jest.Mock;
+      mockTransaction.mockResolvedValue([[], 0]);
+
+      // Act
+      const result = await userService.findAll({
+        keyword: 'nonexistentuser',
+      });
+
+      // Assert
+      expect(result).toEqual({
+        list: [],
+        total: 0,
+      });
+    });
+
+    it('should handle users with no profile or roles', async () => {
       // Arrange
       const mockTransaction = prismaService.$transaction as jest.Mock;
       const mockUsers = [
         {
-          id: 'test1',
-          userName: 'testUser1',
+          id: 'user1',
+          userName: 'user1',
           disabled: false,
           createdAt: new Date('2023-01-01'),
-          updatedAt: new Date('2023-01-01'),
+          updatedAt: new Date('2023-01-02'),
           profile: null,
           roleInUser: [],
         },
@@ -387,11 +543,11 @@ describe('UserService', () => {
       expect(result).toEqual({
         list: [
           {
-            id: 'test1',
-            userName: 'testUser1',
+            id: 'user1',
+            userName: 'user1',
             disabled: false,
             createdAt: '2023-01-01T00:00:00.000Z',
-            updatedAt: '2023-01-01T00:00:00.000Z',
+            updatedAt: '2023-01-02T00:00:00.000Z',
             nickName: undefined,
             avatar: undefined,
             roleNames: [],
@@ -399,6 +555,67 @@ describe('UserService', () => {
         ],
         total: 1,
       });
+    });
+  });
+
+  describe('generateHashPassword', () => {
+    it('should hash password using bcrypt with configured salt rounds', async () => {
+      // Arrange
+      const password = 'testPassword';
+      const saltRounds = 10;
+      const hashedPassword = 'hashedTestPassword';
+
+      // Reset mock and create a new mock for this test
+      jest.clearAllMocks();
+
+      // Mock bcrypt.hash
+      jest
+        .spyOn(bcrypt, 'hash')
+        .mockImplementation(() => Promise.resolve(hashedPassword));
+
+      // Mock configService to return salt rounds
+      configService.get.mockReturnValue(saltRounds);
+
+      // Act
+      const result = await (userService as any).generateHashPassword(password);
+
+      // Assert
+      expect(result).toBe(hashedPassword);
+      expect(bcrypt.hash).toHaveBeenCalledWith(password, saltRounds);
+      expect(configService.get).toHaveBeenCalledWith('NODE_ENV');
+    });
+
+    it('should use the correct salt rounds from config', async () => {
+      // Arrange
+      const password = 'testPassword';
+      const saltRounds = 12; // Different salt rounds
+
+      // Clear previous mock calls
+      (bcrypt.hash as jest.Mock).mockClear();
+
+      configService.get.mockReturnValue(saltRounds);
+
+      // Act
+      await (userService as any).generateHashPassword(password);
+
+      // Assert
+      expect(bcrypt.hash).toHaveBeenCalledWith(password, saltRounds);
+    });
+  });
+
+  describe('getDefaultPassword', () => {
+    it('should return the default admin password from config', () => {
+      // Arrange
+      const defaultPassword = 'admin123';
+
+      // Mock configService to return the default password
+      configService.get.mockReturnValue(defaultPassword);
+
+      // Act
+      const result = (userService as any).getDefaultPassword();
+
+      // Assert
+      expect(result).toBe(defaultPassword);
     });
   });
 });

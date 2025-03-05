@@ -150,4 +150,41 @@ describe('RoleController', () => {
       );
     });
   });
+
+  describe('findRoleTree', () => {
+    const mockRoleTree = [
+      {
+        id: 1,
+        name: 'admin',
+        description: 'Admin role',
+        children: [
+          {
+            id: 2,
+            name: 'editor',
+            description: 'Editor role',
+            children: [],
+          },
+        ],
+      },
+    ];
+
+    it('should return role tree', async () => {
+      service.findRoleTree.mockResolvedValue(mockRoleTree);
+
+      const result = await controller.findRoleTree();
+
+      expect(service.findRoleTree).toHaveBeenCalled();
+      expect(result).toEqual(mockRoleTree);
+    });
+
+    it('should throw error when fetching role tree fails', async () => {
+      service.findRoleTree.mockRejectedValue(
+        new Error('Failed to fetch role tree'),
+      );
+
+      await expect(controller.findRoleTree()).rejects.toThrow(
+        'Failed to fetch role tree',
+      );
+    });
+  });
 });

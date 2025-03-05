@@ -250,4 +250,17 @@ export class RoleService {
       },
     });
   }
+
+  findRoleTree() {
+    return this.prismaService.role.findMany({
+      where: {
+        deleted: false,
+        disabled: false,
+      },
+      select: {
+        id: true,
+        name: true,
+      },
+    });
+  }
 }

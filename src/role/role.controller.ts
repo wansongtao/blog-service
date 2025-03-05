@@ -17,6 +17,7 @@ import { Authority } from 'src/common/decorator/authority.decorator';
 import { CreateRoleDto } from './dto/create-role.dto';
 import { RoleDetailEntity } from './entities/role-detail.entity';
 import { UpdateRoleDto } from './dto/update-role.dto';
+import { RoleTreeEntity } from './entities/role-tree.entity';
 
 @ApiTags('role')
 @ApiBearerAuth()
@@ -37,6 +38,13 @@ export class RoleController {
   @Authority('system:role:add')
   create(@Body() createRoleDto: CreateRoleDto) {
     return this.roleService.create(createRoleDto);
+  }
+
+  @ApiOperation({ summary: '获取所有有效角色树' })
+  @ApiBaseResponse(RoleTreeEntity, 'array')
+  @Get('tree')
+  findRoleTree() {
+    return this.roleService.findRoleTree();
   }
 
   @ApiOperation({ summary: '获取角色详情' })

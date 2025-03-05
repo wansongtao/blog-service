@@ -461,4 +461,50 @@ describe('RoleService', () => {
       });
     });
   });
+
+  describe('findRoleTree', () => {
+    it('should return all active roles', async () => {
+      const mockRoles = [
+        { id: 1, name: 'admin' },
+        { id: 2, name: 'editor' },
+        { id: 3, name: 'viewer' },
+      ];
+
+      const mockFindMany = jest.fn().mockResolvedValue(mockRoles);
+      prismaService.role.findMany = mockFindMany;
+
+      const result = await roleService.findRoleTree();
+
+      expect(result).toEqual(mockRoles);
+      expect(mockFindMany).toHaveBeenCalledWith({
+        where: {
+          deleted: false,
+          disabled: false,
+        },
+        select: {
+          id: true,
+          name: true,
+        },
+      });
+    });
+
+    it('should return empty array when no active roles exist', async () => {
+      const mockFindMany = jest.fn().mockResolvedValue([]);
+      prismaService.role.findMany = mockFindMany;
+
+      const result = await roleService.findRoleTree();
+
+      expect(result).toEqual([]);
+      expect(mockFindMany).toHaveBeenCalledWith({
+        where: {
+          deleted: false,
+          disabled: false,
+        },
+        select: {
+          id: true,
+          name: true,
+        },
+      });
+    });
+  });
 });

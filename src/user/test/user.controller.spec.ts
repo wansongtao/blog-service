@@ -261,4 +261,43 @@ describe('UserController', () => {
       expect(userService.create).toHaveBeenCalledWith(userDtoWithoutRoles);
     });
   });
+
+  describe('findOne', () => {
+    const mockUserId = 'testUser';
+    const mockUserDetail = {
+      userName: 'testUser',
+      nickName: 'testNickName',
+      disabled: false,
+      roles: [1, 2],
+    };
+
+    it('should return user detail by id', async () => {
+      userService.findOne.mockResolvedValue(mockUserDetail);
+
+      const result = await userController.findOne(mockUserId);
+
+      expect(result).toEqual(mockUserDetail);
+      expect(userService.findOne).toHaveBeenCalledWith(mockUserId);
+      expect(userService.findOne).toHaveBeenCalledTimes(1);
+    });
+
+    it('should throw NotFoundException if user does not exist', async () => {
+      const errorMessage = '用户不存在';
+      userService.findOne.mockRejectedValue(
+        new NotFoundException(errorMessage),
+      );
+
+      await expect(userController.findOne(mockUserId)).rejects.toThrow(
+        errorMessage,
+      );
+    });
+
+    it('should throw error with invalid user id format', async () => {
+      const invalidId = 'invalid-id';
+      const errorMessage = '无效的用户ID';
+      userService.findOne.mockRejectedValue(new Error(errorMessage));
+
+      await expect(userController.findOne(invalidId)).rejects.toThrow();
+    });
+  });
 });

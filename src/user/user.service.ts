@@ -266,4 +266,35 @@ export class UserService {
       },
     });
   }
+
+  async findOne(id: string) {
+    const user = await this.prismaService.user.findUnique({
+      where: { id, deleted: false },
+      select: {
+        userName: true,
+        disabled: true,
+        profile: {
+          select: { nickName: true },
+        },
+        roleInUser: {
+          select: {
+            roleId: true,
+          },
+        },
+      },
+    });
+
+    if (!user) {
+      throw new BadRequestException('用户不存在');
+    }
+
+    const profile = user.profile;
+    const roles = user.roleInUser.map((role) => role.roleId);
+    return {
+      userName: user.userName,
+      disabled: user.disabled,
+      ...profile,
+      roles,
+    };
+  }
 }

@@ -618,4 +618,80 @@ describe('UserService', () => {
       expect(result).toBe(defaultPassword);
     });
   });
+
+  describe('findOne', () => {
+    it('should throw BadRequestException when user not found', async () => {
+      // Arrange
+      const mockFindUnique = prismaService.user.findUnique as jest.Mock;
+      mockFindUnique.mockResolvedValue(null);
+
+      // Act & Assert
+      await expect(userService.findOne('testId')).rejects.toThrow('用户不存在');
+      expect(mockFindUnique).toHaveBeenCalledWith({
+        where: { id: 'testId', deleted: false },
+        select: {
+          userName: true,
+          disabled: true,
+          profile: {
+            select: { nickName: true },
+          },
+          roleInUser: {
+            select: {
+              roleId: true,
+            },
+          },
+        },
+      });
+    });
+
+    it('should return user details with roles when user exists', async () => {
+      // Arrange
+      const mockFindUnique = prismaService.user.findUnique as jest.Mock;
+      const mockUser = {
+        userName: 'testUser',
+        disabled: false,
+        profile: {
+          nickName: 'Test User',
+        },
+        roleInUser: [{ roleId: 1 }, { roleId: 2 }],
+      };
+      mockFindUnique.mockResolvedValue(mockUser);
+
+      // Act
+      const result = await userService.findOne('testId');
+
+      // Assert
+      expect(result).toEqual({
+        userName: 'testUser',
+        disabled: false,
+        nickName: 'Test User',
+        roles: [1, 2],
+      });
+    });
+
+    it('should return user details with empty roles array', async () => {
+      // Arrange
+      const mockFindUnique = prismaService.user.findUnique as jest.Mock;
+      const mockUser = {
+        userName: 'testUser',
+        disabled: false,
+        profile: {
+          nickName: 'Test User',
+        },
+        roleInUser: [],
+      };
+      mockFindUnique.mockResolvedValue(mockUser);
+
+      // Act
+      const result = await userService.findOne('testId');
+
+      // Assert
+      expect(result).toEqual({
+        userName: 'testUser',
+        disabled: false,
+        nickName: 'Test User',
+        roles: [],
+      });
+    });
+  });
 });

@@ -1,4 +1,13 @@
-import { Body, Controller, Get, Patch, Post, Query, Req } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Req,
+} from '@nestjs/common';
 import { UserService } from './user.service';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ApiBaseResponse } from 'src/common/decorator/api-base-response.decorator';
@@ -10,6 +19,7 @@ import { UserListEntity } from './entities/user-list.entity';
 import { QueryUserDto } from './dto/query-user.dto';
 import { Authority } from 'src/common/decorator/authority.decorator';
 import { CreateUserDto } from './dto/create-user.dto';
+import { UserDetailEntity } from './entities/user-detail.entity';
 
 @ApiTags('user')
 @ApiBearerAuth()
@@ -67,5 +77,14 @@ export class UserController {
     @Body() updatePasswordDto: UpdatePasswordDto,
   ) {
     return this.userService.updatePassword(req.user.userId, updatePasswordDto);
+  }
+
+  @ApiOperation({
+    summary: '获取用户详情',
+  })
+  @ApiBaseResponse(UserDetailEntity)
+  @Get(':id')
+  findOne(@Param('id') id: string): Promise<UserDetailEntity> {
+    return this.userService.findOne(id);
   }
 }

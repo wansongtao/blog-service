@@ -694,4 +694,224 @@ describe('UserService', () => {
       });
     });
   });
+
+  describe('update', () => {
+    beforeEach(() => {
+      jest
+        .spyOn(userService as any, 'getDefaultPassword')
+        .mockReturnValue('defaultPassword');
+      // Mock the RedisService delUserPermission method
+      (userService as any).redisService = {
+        delUserPermission: jest.fn(),
+      };
+    });
+
+    it('should throw NotFoundException when user not found', async () => {
+      // Arrange
+      const mockFindUnique = prismaService.user.findUnique as jest.Mock;
+      mockFindUnique.mockResolvedValue(null);
+
+      const updateUserDto = {
+        disabled: false,
+        nickName: 'Updated Name',
+        roles: [1, 2],
+      };
+
+      // Act & Assert
+      await expect(
+        userService.update('nonExistentId', updateUserDto),
+      ).rejects.toThrow('用户不存在');
+      expect(mockFindUnique).toHaveBeenCalledWith({
+        where: { id: 'nonExistentId', deleted: false },
+        select: { userName: true },
+      });
+    });
+
+    it('should throw BadRequestException when trying to disable default admin', async () => {
+      // Arrange
+      const mockFindUnique = prismaService.user.findUnique as jest.Mock;
+      mockFindUnique.mockResolvedValue({ userName: 'admin' }); // Admin username
+
+      configService.get.mockImplementation((key) => {
+        if (key === 'DEFAULT_ADMIN_USERNAME') return 'admin';
+        return null;
+      });
+
+      const updateUserDto = {
+        disabled: true,
+        nickName: 'Admin',
+        roles: [1],
+      };
+
+      // Act & Assert
+      await expect(
+        userService.update('adminId', updateUserDto),
+      ).rejects.toThrow('不能禁用超级管理员');
+    });
+
+    it('should throw BadRequestException when trying to modify default admin roles', async () => {
+      // Arrange
+      const mockFindUnique = prismaService.user.findUnique as jest.Mock;
+      mockFindUnique.mockResolvedValue({ userName: 'admin' }); // Admin username
+
+      configService.get.mockImplementation((key) => {
+        if (key === 'DEFAULT_ADMIN_USERNAME') return 'admin';
+        return null;
+      });
+
+      const updateUserDto = {
+        disabled: false,
+        nickName: 'Admin',
+        roles: [2, 3], // Trying to change roles
+      };
+
+      // Act & Assert
+      await expect(
+        userService.update('adminId', updateUserDto),
+      ).rejects.toThrow('不能修改超级管理员角色');
+    });
+
+    it('should update user with roles when input valid', async () => {
+      // Arrange
+      const mockFindUnique = prismaService.user.findUnique as jest.Mock;
+      mockFindUnique.mockResolvedValue({ userName: 'regularUser' });
+
+      const mockUpdate = prismaService.user.update as jest.Mock;
+      mockUpdate.mockResolvedValue({});
+
+      const updateUserDto = {
+        disabled: false,
+        nickName: 'Updated Name',
+        roles: [1, 2],
+      };
+
+      // Act
+      await userService.update('userId', updateUserDto);
+
+      // Assert
+      expect(mockUpdate).toHaveBeenCalledWith({
+        where: { id: 'userId', deleted: false },
+        data: {
+          disabled: false,
+          profile: {
+            update: {
+              nickName: 'Updated Name',
+            },
+          },
+          roleInUser: {
+            deleteMany: {},
+            createMany: {
+              data: [{ roleId: 1 }, { roleId: 2 }],
+            },
+          },
+        },
+      });
+      expect(
+        (userService as any).redisService.delUserPermission,
+      ).toHaveBeenCalledWith('userId');
+    });
+
+    it('should update user and clear roles when roles array is empty', async () => {
+      // Arrange
+      const mockFindUnique = prismaService.user.findUnique as jest.Mock;
+      mockFindUnique.mockResolvedValue({ userName: 'regularUser' });
+
+      const mockUpdate = prismaService.user.update as jest.Mock;
+      mockUpdate.mockResolvedValue({});
+
+      const updateUserDto = {
+        disabled: false,
+        nickName: 'Updated Name',
+        roles: [],
+      };
+
+      // Act
+      await userService.update('userId', updateUserDto);
+
+      // Assert
+      expect(mockUpdate).toHaveBeenCalledWith({
+        where: { id: 'userId', deleted: false },
+        data: {
+          disabled: false,
+          profile: {
+            update: {
+              nickName: 'Updated Name',
+            },
+          },
+          roleInUser: {
+            deleteMany: {},
+          },
+        },
+      });
+      expect(
+        (userService as any).redisService.delUserPermission,
+      ).toHaveBeenCalledWith('userId');
+    });
+
+    it('should clear redis cache when user is disabled', async () => {
+      // Arrange
+      const mockFindUnique = prismaService.user.findUnique as jest.Mock;
+      mockFindUnique.mockResolvedValue({ userName: 'regularUser' });
+
+      const mockUpdate = prismaService.user.update as jest.Mock;
+      mockUpdate.mockResolvedValue({});
+
+      const updateUserDto = {
+        disabled: true,
+        nickName: 'Updated Name',
+      };
+
+      // Act
+      await userService.update('userId', updateUserDto);
+
+      // Assert
+      expect(mockUpdate).toHaveBeenCalledWith({
+        where: { id: 'userId', deleted: false },
+        data: {
+          disabled: true,
+          profile: {
+            update: {
+              nickName: 'Updated Name',
+            },
+          },
+        },
+      });
+      expect(
+        (userService as any).redisService.delUserPermission,
+      ).toHaveBeenCalledWith('userId');
+    });
+
+    it('should update user without roles when roles not provided', async () => {
+      // Arrange
+      const mockFindUnique = prismaService.user.findUnique as jest.Mock;
+      mockFindUnique.mockResolvedValue({ userName: 'regularUser' });
+
+      const mockUpdate = prismaService.user.update as jest.Mock;
+      mockUpdate.mockResolvedValue({});
+
+      const updateUserDto = {
+        disabled: false,
+        nickName: 'Updated Name',
+      };
+
+      // Act
+      await userService.update('userId', updateUserDto);
+
+      // Assert
+      expect(mockUpdate).toHaveBeenCalledWith({
+        where: { id: 'userId', deleted: false },
+        data: {
+          disabled: false,
+          profile: {
+            update: {
+              nickName: 'Updated Name',
+            },
+          },
+        },
+      });
+      expect(
+        (userService as any).redisService.delUserPermission,
+      ).not.toHaveBeenCalled();
+    });
+  });
 });

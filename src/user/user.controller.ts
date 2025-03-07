@@ -20,6 +20,7 @@ import { QueryUserDto } from './dto/query-user.dto';
 import { Authority } from 'src/common/decorator/authority.decorator';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UserDetailEntity } from './entities/user-detail.entity';
+import { UpdateUserDto } from './dto/update-user.dto';
 
 @ApiTags('user')
 @ApiBearerAuth()
@@ -86,5 +87,15 @@ export class UserController {
   @Get(':id')
   findOne(@Param('id') id: string): Promise<UserDetailEntity> {
     return this.userService.findOne(id);
+  }
+
+  @ApiOperation({
+    summary: '更新用户信息',
+  })
+  @ApiBaseResponse()
+  @Authority('system:user:edit')
+  @Patch(':id')
+  update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
+    return this.userService.update(id, updateUserDto);
   }
 }

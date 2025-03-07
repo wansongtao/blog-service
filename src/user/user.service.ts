@@ -6,6 +6,7 @@ import {
 import { PrismaService } from 'nestjs-prisma';
 import bcrypt, { hash } from 'bcrypt';
 import { ConfigService } from '@nestjs/config';
+import { RedisService } from 'src/redis/redis.service';
 import { getBaseConfig } from 'src/common/config';
 import { UserPermissionInfoEntity } from './entities/user-permission-info.entity';
 import { UserProfileEntity } from './entities/user-profile.entity';
@@ -14,12 +15,14 @@ import { UpdatePasswordDto } from './dto/update-password.dto';
 import { QueryUserDto } from './dto/query-user.dto';
 import { Prisma } from '@prisma/client';
 import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 
 @Injectable()
 export class UserService {
   constructor(
     private readonly prismaService: PrismaService,
     private readonly configService: ConfigService,
+    private readonly redisService: RedisService,
   ) {}
 
   private generateHashPassword(password: string) {
@@ -296,5 +299,59 @@ export class UserService {
       ...profile,
       roles,
     };
+  }
+
+  async update(id: string, updateUserDto: UpdateUserDto) {
+    const user = await this.prismaService.user.findUnique({
+      where: { id, deleted: false },
+      select: { userName: true },
+    });
+    if (!user) {
+      throw new NotFoundException('用户不存在');
+    }
+
+    if (
+      user.userName === getBaseConfig(this.configService).defaultAdmin.username
+    ) {
+      if (updateUserDto.disabled) {
+        throw new BadRequestException('不能禁用超级管理员');
+      }
+
+      if (updateUserDto.roles) {
+        throw new BadRequestException('不能修改超级管理员角色');
+      }
+    }
+
+    const data: Prisma.UserUpdateInput = {
+      disabled: updateUserDto.disabled,
+      profile: {
+        update: {
+          nickName: updateUserDto.nickName,
+        },
+      },
+    };
+    if (updateUserDto.disabled) {
+      this.redisService.delUserPermission(id);
+    }
+
+    if (updateUserDto.roles || updateUserDto.roles === null) {
+      this.redisService.delUserPermission(id);
+      data.roleInUser = {
+        deleteMany: {},
+      };
+
+      if (updateUserDto.roles.length) {
+        data.roleInUser.createMany = {
+          data: updateUserDto.roles.map((roleId) => ({
+            roleId,
+          })),
+        };
+      }
+    }
+
+    await this.prismaService.user.update({
+      where: { id, deleted: false },
+      data,
+    });
   }
 }

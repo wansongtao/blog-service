@@ -300,4 +300,67 @@ describe('UserController', () => {
       await expect(userController.findOne(invalidId)).rejects.toThrow();
     });
   });
+
+  describe('update', () => {
+    const mockUserId = 'testUser';
+    const mockUpdateUserDto = {
+      roleIds: [1, 3],
+      nickName: 'Updated User',
+      disabled: true,
+    };
+
+    it('should update user successfully', async () => {
+      userService.update.mockResolvedValue(undefined);
+
+      await userController.update(mockUserId, mockUpdateUserDto);
+
+      expect(userService.update).toHaveBeenCalledWith(
+        mockUserId,
+        mockUpdateUserDto,
+      );
+      expect(userService.update).toHaveBeenCalledTimes(1);
+    });
+
+    it('should throw NotFoundException if user does not exist', async () => {
+      const errorMessage = '用户不存在';
+      userService.update.mockRejectedValue(new NotFoundException(errorMessage));
+
+      await expect(
+        userController.update(mockUserId, mockUpdateUserDto),
+      ).rejects.toThrow(errorMessage);
+    });
+
+    it('should throw error when role does not exist', async () => {
+      const errorMessage = '角色不存在';
+      userService.update.mockRejectedValue(new Error(errorMessage));
+
+      await expect(
+        userController.update(mockUserId, mockUpdateUserDto),
+      ).rejects.toThrow(errorMessage);
+    });
+
+    it('should handle partial updates', async () => {
+      const partialUpdate = { nickName: 'Just Name Update' };
+      userService.update.mockResolvedValue(undefined);
+
+      await userController.update(mockUserId, partialUpdate);
+
+      expect(userService.update).toHaveBeenCalledWith(
+        mockUserId,
+        partialUpdate,
+      );
+    });
+
+    it('should handle empty roleIds', async () => {
+      const updateWithEmptyRoles = { ...mockUpdateUserDto, roleIds: [] };
+      userService.update.mockResolvedValue(undefined);
+
+      await userController.update(mockUserId, updateWithEmptyRoles);
+
+      expect(userService.update).toHaveBeenCalledWith(
+        mockUserId,
+        updateWithEmptyRoles,
+      );
+    });
+  });
 });

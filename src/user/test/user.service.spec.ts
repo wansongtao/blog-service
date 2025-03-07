@@ -975,4 +975,71 @@ describe('UserService', () => {
       ).toHaveBeenCalledWith('userId');
     });
   });
+
+  describe('resetPassword', () => {
+    beforeEach(() => {
+      jest
+        .spyOn(userService as any, 'generateHashPassword')
+        .mockResolvedValue('hashedPassword');
+      jest
+        .spyOn(userService as any, 'getDefaultPassword')
+        .mockReturnValue('defaultPassword');
+    });
+
+    it('should throw NotFoundException when user not found', async () => {
+      // Arrange
+      const mockFindUnique = prismaService.user.findUnique as jest.Mock;
+      mockFindUnique.mockResolvedValue(null);
+
+      // Act & Assert
+      await expect(userService.resetPassword('nonExistentId')).rejects.toThrow(
+        '用户不存在',
+      );
+      expect(mockFindUnique).toHaveBeenCalledWith({
+        where: { id: 'nonExistentId', deleted: false },
+        select: { userName: true },
+      });
+    });
+
+    it('should throw BadRequestException when trying to reset default admin password', async () => {
+      // Arrange
+      const mockFindUnique = prismaService.user.findUnique as jest.Mock;
+      mockFindUnique.mockResolvedValue({ userName: 'admin' }); // Admin username
+
+      configService.get.mockImplementation((key) => {
+        if (key === 'DEFAULT_ADMIN_USERNAME') return 'admin';
+        return null;
+      });
+
+      // Act & Assert
+      await expect(userService.resetPassword('adminId')).rejects.toThrow(
+        '不能重置超级管理员密码',
+      );
+    });
+
+    it('should reset password successfully for regular user', async () => {
+      // Arrange
+      const mockFindUnique = prismaService.user.findUnique as jest.Mock;
+      mockFindUnique.mockResolvedValue({ userName: 'regularUser' });
+
+      const mockUpdate = prismaService.user.update as jest.Mock;
+      mockUpdate.mockResolvedValue({});
+
+      // Act
+      const result = await userService.resetPassword('userId');
+
+      // Assert
+      expect(mockUpdate).toHaveBeenCalledWith({
+        where: { id: 'userId' },
+        data: { password: 'hashedPassword' },
+      });
+      expect((userService as any).getDefaultPassword).toHaveBeenCalled();
+      expect((userService as any).generateHashPassword).toHaveBeenCalledWith(
+        'defaultPassword',
+      );
+      expect(result).toEqual({
+        message: '重置密码成功，默认密码为：defaultPassword',
+      });
+    });
+  });
 });

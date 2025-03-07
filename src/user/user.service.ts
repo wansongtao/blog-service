@@ -30,7 +30,7 @@ export class UserService {
   }
 
   private getDefaultPassword() {
-    return getBaseConfig(this.configService).defaultAdmin.password;
+    return getBaseConfig(this.configService).defaultPassword;
   }
 
   async findUser(userName: string): Promise<{
@@ -376,5 +376,30 @@ export class UserService {
       where: { id },
       data: { deleted: true },
     });
+  }
+
+  async resetPassword(id: string) {
+    const user = await this.prismaService.user.findUnique({
+      where: { id, deleted: false },
+      select: { userName: true },
+    });
+    if (!user) {
+      throw new NotFoundException('用户不存在');
+    }
+    if (
+      user.userName === getBaseConfig(this.configService).defaultAdmin.username
+    ) {
+      throw new BadRequestException('不能重置超级管理员密码');
+    }
+
+    const defaultPassword = this.getDefaultPassword();
+    const password = await this.generateHashPassword(defaultPassword);
+
+    await this.prismaService.user.update({
+      where: { id },
+      data: { password },
+    });
+
+    return { message: `重置密码成功，默认密码为：${defaultPassword}` };
   }
 }

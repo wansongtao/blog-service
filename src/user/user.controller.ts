@@ -108,4 +108,14 @@ export class UserController {
   remove(@Param('id') id: string) {
     return this.userService.remove(id);
   }
+
+  @ApiOperation({
+    summary: '重置密码',
+  })
+  @ApiBaseResponse()
+  @Authority('system:user:reset')
+  @Patch(':id/reset')
+  resetPassword(@Param('id') id: string) {
+    return this.userService.resetPassword(id);
+  }
 }

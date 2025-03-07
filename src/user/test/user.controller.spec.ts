@@ -402,4 +402,45 @@ describe('UserController', () => {
       await expect(userController.remove(invalidId)).rejects.toThrow();
     });
   });
+
+  describe('resetPassword', () => {
+    const mockUserId = 'testUser';
+
+    it('should reset password successfully', async () => {
+      userService.resetPassword.mockResolvedValue(undefined);
+
+      await userController.resetPassword(mockUserId);
+
+      expect(userService.resetPassword).toHaveBeenCalledWith(mockUserId);
+      expect(userService.resetPassword).toHaveBeenCalledTimes(1);
+    });
+
+    it('should throw NotFoundException if user does not exist', async () => {
+      const errorMessage = '用户不存在';
+      userService.resetPassword.mockRejectedValue(
+        new NotFoundException(errorMessage),
+      );
+
+      await expect(userController.resetPassword(mockUserId)).rejects.toThrow(
+        errorMessage,
+      );
+    });
+
+    it('should throw error if trying to reset password for a special user', async () => {
+      const errorMessage = '该用户密码不能重置';
+      userService.resetPassword.mockRejectedValue(new Error(errorMessage));
+
+      await expect(userController.resetPassword(mockUserId)).rejects.toThrow(
+        errorMessage,
+      );
+    });
+
+    it('should throw error with invalid user id format', async () => {
+      const invalidId = 'invalid-id';
+      const errorMessage = '无效的用户ID';
+      userService.resetPassword.mockRejectedValue(new Error(errorMessage));
+
+      await expect(userController.resetPassword(invalidId)).rejects.toThrow();
+    });
+  });
 });

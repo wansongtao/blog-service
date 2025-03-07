@@ -363,4 +363,43 @@ describe('UserController', () => {
       );
     });
   });
+
+  describe('remove', () => {
+    const mockUserId = 'testUser';
+
+    it('should remove user successfully', async () => {
+      userService.remove.mockResolvedValue(undefined);
+
+      await userController.remove(mockUserId);
+
+      expect(userService.remove).toHaveBeenCalledWith(mockUserId);
+      expect(userService.remove).toHaveBeenCalledTimes(1);
+    });
+
+    it('should throw NotFoundException if user does not exist', async () => {
+      const errorMessage = '用户不存在';
+      userService.remove.mockRejectedValue(new NotFoundException(errorMessage));
+
+      await expect(userController.remove(mockUserId)).rejects.toThrow(
+        errorMessage,
+      );
+    });
+
+    it('should throw error if trying to remove a special user', async () => {
+      const errorMessage = '该用户不能被删除';
+      userService.remove.mockRejectedValue(new Error(errorMessage));
+
+      await expect(userController.remove(mockUserId)).rejects.toThrow(
+        errorMessage,
+      );
+    });
+
+    it('should throw error with invalid user id format', async () => {
+      const invalidId = 'invalid-id';
+      const errorMessage = '无效的用户ID';
+      userService.remove.mockRejectedValue(new Error(errorMessage));
+
+      await expect(userController.remove(invalidId)).rejects.toThrow();
+    });
+  });
 });

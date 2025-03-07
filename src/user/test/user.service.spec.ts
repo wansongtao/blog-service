@@ -914,4 +914,65 @@ describe('UserService', () => {
       ).not.toHaveBeenCalled();
     });
   });
+
+  describe('remove', () => {
+    beforeEach(() => {
+      // Mock the RedisService delUserPermission method
+      (userService as any).redisService = {
+        delUserPermission: jest.fn(),
+      };
+    });
+
+    it('should throw NotFoundException when user not found', async () => {
+      // Arrange
+      const mockFindUnique = prismaService.user.findUnique as jest.Mock;
+      mockFindUnique.mockResolvedValue(null);
+
+      // Act & Assert
+      await expect(userService.remove('nonExistentId')).rejects.toThrow(
+        '用户不存在',
+      );
+      expect(mockFindUnique).toHaveBeenCalledWith({
+        where: { id: 'nonExistentId', deleted: false },
+        select: { userName: true },
+      });
+    });
+
+    it('should throw BadRequestException when trying to delete default admin', async () => {
+      // Arrange
+      const mockFindUnique = prismaService.user.findUnique as jest.Mock;
+      mockFindUnique.mockResolvedValue({ userName: 'admin' }); // Admin username
+
+      configService.get.mockImplementation((key) => {
+        if (key === 'DEFAULT_ADMIN_USERNAME') return 'admin';
+        return null;
+      });
+
+      // Act & Assert
+      await expect(userService.remove('adminId')).rejects.toThrow(
+        '不能删除超级管理员',
+      );
+    });
+
+    it('should delete user when input valid', async () => {
+      // Arrange
+      const mockFindUnique = prismaService.user.findUnique as jest.Mock;
+      mockFindUnique.mockResolvedValue({ userName: 'regularUser' });
+
+      const mockUpdate = prismaService.user.update as jest.Mock;
+      mockUpdate.mockResolvedValue({});
+
+      // Act
+      await userService.remove('userId');
+
+      // Assert
+      expect(mockUpdate).toHaveBeenCalledWith({
+        where: { id: 'userId' },
+        data: { deleted: true },
+      });
+      expect(
+        (userService as any).redisService.delUserPermission,
+      ).toHaveBeenCalledWith('userId');
+    });
+  });
 });

@@ -354,4 +354,27 @@ export class UserService {
       data,
     });
   }
+
+  async remove(id: string) {
+    const user = await this.prismaService.user.findUnique({
+      where: { id, deleted: false },
+      select: { userName: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException('用户不存在');
+    }
+    if (
+      user.userName === getBaseConfig(this.configService).defaultAdmin.username
+    ) {
+      throw new BadRequestException('不能删除超级管理员');
+    }
+
+    this.redisService.delUserPermission(id);
+
+    await this.prismaService.user.update({
+      where: { id },
+      data: { deleted: true },
+    });
+  }
 }

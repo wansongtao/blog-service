@@ -98,4 +98,14 @@ export class UserController {
   update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
     return this.userService.update(id, updateUserDto);
   }
+
+  @ApiOperation({
+    summary: '删除用户',
+  })
+  @ApiBaseResponse()
+  @Authority('system:user:del')
+  @Patch(':id/delete')
+  remove(@Param('id') id: string) {
+    return this.userService.remove(id);
+  }
 }

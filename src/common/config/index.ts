@@ -12,6 +12,7 @@ export const getBaseConfig = (configService: ConfigService) => ({
     'SIGN_IN_ERROR_EXPIRES_IN',
     60 * 5,
   ),
+  defaultPassword: configService.get<string>('DEFAULT_PASSWORD'),
   defaultAdmin: {
     username: configService.get<string>('DEFAULT_ADMIN_USERNAME'),
     password: configService.get<string>('DEFAULT_ADMIN_PASSWORD'),

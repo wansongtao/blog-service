@@ -33,6 +33,15 @@ export class UserService {
     return getBaseConfig(this.configService).defaultPassword;
   }
 
+  private async removeUserToken(id: string) {
+    const key = this.redisService.generateSSOKey(id);
+    const token = await this.redisService.getSSO(key);
+    if (token) {
+      this.redisService.setBlackList(token);
+    }
+    this.redisService.delSSO(key);
+  }
+
   async findUser(userName: string): Promise<{
     id: string;
     userName: string;
@@ -332,6 +341,7 @@ export class UserService {
     };
     if (updateUserDto.disabled) {
       this.redisService.delUserPermission(id);
+      this.removeUserToken(id);
     }
 
     if (updateUserDto.roles || updateUserDto.roles === null) {
@@ -371,6 +381,7 @@ export class UserService {
     }
 
     this.redisService.delUserPermission(id);
+    this.removeUserToken(id);
 
     await this.prismaService.user.update({
       where: { id },

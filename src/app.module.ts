@@ -20,6 +20,7 @@ import { PermissionModule } from './permission/permission.module';
 import { AuthorityGuard } from './common/guard/authority.guard';
 import { UploadModule } from './upload/upload.module';
 import { RoleModule } from './role/role.module';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 
 @Module({
   imports: [
@@ -122,6 +123,16 @@ import { RoleModule } from './role/role.module';
       },
       inject: [ConfigService],
     }),
+    ThrottlerModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => [
+        {
+          ttl: getBaseConfig(config).throttle.ttl,
+          limit: getBaseConfig(config).throttle.limit,
+        },
+      ],
+    }),
     AuthModule,
     UserModule,
     RedisModule,
@@ -130,6 +141,10 @@ import { RoleModule } from './role/role.module';
     RoleModule,
   ],
   providers: [
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
     {
       provide: APP_INTERCEPTOR,
       useClass: BaseResponseInterceptor,

@@ -55,4 +55,8 @@ export const getBaseConfig = (configService: ConfigService) => ({
     bucketName: configService.get<string>('MINIO_BUCKET_NAME'),
     expiresIn: +configService.get<number>('MINIO_EXPIRES_IN'),
   },
+  throttle: {
+    ttl: +configService.get<number>('THROTTLE_TTL'),
+    limit: +configService.get<number>('THROTTLE_LIMIT'),
+  },
 });

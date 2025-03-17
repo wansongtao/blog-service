@@ -11,6 +11,7 @@ import helmet from 'helmet';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.use(helmet());
+
   const logger = app.get(WINSTON_MODULE_NEST_PROVIDER);
   app.useLogger(logger);
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));

@@ -6,10 +6,11 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 import { ValidationPipe } from '@nestjs/common';
 import { AllExceptionsFilter } from './common/filter/all-exception.filter';
+import helmet from 'helmet';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-
+  app.use(helmet());
   const logger = app.get(WINSTON_MODULE_NEST_PROVIDER);
   app.useLogger(logger);
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));

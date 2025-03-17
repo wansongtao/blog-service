@@ -36,6 +36,7 @@
     "bcrypt": "^5.1.1",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
+    "helmet": "^8.0.0",
     "ioredis": "^5.4.1",
     "minio": "^8.0.3",
     "nest-winston": "^1.9.7",
@@ -103,5 +104,6 @@
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
-  }
+  },
+  "packageManager": "pnpm@10.6.3+sha256.bc1efe92ee4d40b1a7a644e5ca9e1855c5c5eafc6b1512f9017b31b9245419db"
 }

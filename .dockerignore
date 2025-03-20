@@ -1,0 +1,9 @@
+*.md
+node_modules/
+.git/
+.DS_Store
+.vscode/
+.dockerignore
+.npmrc
+LICENSE
+*.png

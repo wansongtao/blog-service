@@ -1,0 +1,41 @@
+name: blog
+
+services:
+  blog_services_prod:
+    container_name: blog-service-prod
+    restart: on-failure:6
+    env_file: .env.production.local
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production  # 使用多阶段构建的目标阶段
+    ports:
+      - "${PORT:-3000}:3000"
+    depends_on:
+      - blog_postgres
+      - blog_redis
+    command: sh -c "npm run migrate:deploy && npm run prisma:seed:deploy && node dist/src/main.js"
+
+  blog_postgres:
+    image: postgres:15
+    restart: on-failure:6
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - blog_postgres_data:/var/lib/postgresql/data
+
+  blog_redis:
+    image: redis:6
+    restart: on-failure:6
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - blog_redis_data:/data
+
+volumes:
+  blog_postgres_data:
+  blog_redis_data:

@@ -6,10 +6,9 @@
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
-    "build": "nest build",
+    "start:dev": "dotenv -e .env.development -- nest start --watch",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "dotenv -e .env.development -- nest start",
-    "start:dev": "dotenv -e .env.development -- nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
@@ -21,7 +20,10 @@
     "migrate:dev": "dotenv -e .env.development -- npx prisma migrate dev --name init",
     "prisma:generate": "npx prisma generate",
     "migrate:dev:create": "dotenv -e .env.development -- npx prisma migrate dev --create-only",
-    "prisma:seed": "dotenv -e .env.development -- npx prisma db seed"
+    "prisma:seed": "dotenv -e .env.development -- npx prisma db seed",
+    "build": "dotenv -e .env.production.local -- nest build",
+    "migrate:deploy": "dotenv -e .env.production.local -- npx prisma migrate deploy",
+    "prisma:seed:deploy": "dotenv -e .env.production.local -- npx prisma db seed"
   },
   "dependencies": {
     "@nestjs-modules/ioredis": "^2.0.2",

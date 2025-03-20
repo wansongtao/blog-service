@@ -23,8 +23,6 @@ COPY . .
 # 将构建与 Prisma 生成合并为一个 RUN 命令
 RUN npm run prisma:generate && \
   npm run build && \
-  echo "=== 构建结果检查 ===" && \
-  ls -la dist/ && \
   npm prune --production
 
 ###################
@@ -55,9 +53,7 @@ COPY --chown=node:node key ./key
 # 安装 ts-node 并重新生成 Prisma Client（合并为单个 RUN 命令）
 RUN npm install -g dotenv-cli ts-node && \
   npx prisma generate && \
-  chown -R node:node /usr/src/app && \
-  echo "=== 生产环境文件检查 ===" && \
-  ls -la . && ls -la dist/
+  chown -R node:node /usr/src/app
 
 # 切换到非 root 用户
 USER node

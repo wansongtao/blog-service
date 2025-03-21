@@ -11,12 +11,6 @@ COPY package*.json ./
 # 安装依赖，并添加 --no-cache 参数
 RUN npm install --no-cache
 
-# 安装必要的依赖
-RUN apt-get update -y && \
-  apt-get install -y --no-install-recommends openssl && \
-  apt-get clean && \
-  rm -rf /var/lib/apt/lists/*
-
 # 复制源代码
 COPY . .
 
@@ -36,7 +30,7 @@ ENV NODE_ENV=production
 
 # 安装运行时依赖（合并为单个 RUN 命令）
 RUN apt-get update -y && \
-  apt-get install -y --no-install-recommends openssl ca-certificates netcat-traditional && \
+  apt-get install -y --no-install-recommends openssl ca-certificates && \
   apt-get clean && \
   rm -rf /var/lib/apt/lists/* && \
   mkdir -p /usr/src/app/logs

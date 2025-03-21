@@ -46,17 +46,17 @@ COPY --chown=node:node --from=build /usr/src/app/node_modules ./node_modules
 COPY --chown=node:node prisma ./prisma
 COPY --chown=node:node --from=build /usr/src/app/package*.json ./
 COPY --chown=node:node --from=build /usr/src/app/tsconfig.json ./
-COPY --chown=node:node --from=build /usr/src/app/dist ./dist/
+COPY --chown=node:node --from=build /usr/src/app/dist ./dist
 COPY --chown=node:node .env.production.local ./
 COPY --chown=node:node key ./key
 
-# 安装 ts-node 并重新生成 Prisma Client（合并为单个 RUN 命令）
-RUN npm install -g dotenv-cli ts-node && \
+# 全局安装 dotenv-cli 并重新生成 Prisma Client（合并为单个 RUN 命令）
+RUN npm install -g dotenv-cli && \
   npx prisma generate && \
   chown -R node:node /usr/src/app
 
 # 切换到非 root 用户
 USER node
 
-# 如果 tsconfig.build.json 中的 exclude 没忽略 prisma 目录，则是这个路径 dist/src/main.js
+# 注意 build 后的目录结构
 CMD ["node", "dist/src/main.js"]

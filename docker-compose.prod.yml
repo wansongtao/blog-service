@@ -14,7 +14,7 @@ services:
     depends_on:
       - blog_postgres
       - blog_redis
-    command: sh -c "npm run migrate:deploy && npm run prisma:seed:deploy && node dist/src/main.js"
+    command: sh -c "npm run migrate:deploy && node dist/prisma/seed.js && node dist/src/main.js"
 
   blog_postgres:
     image: postgres:15

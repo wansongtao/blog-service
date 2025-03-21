@@ -22,8 +22,7 @@
     "migrate:dev:create": "dotenv -e .env.development -- npx prisma migrate dev --create-only",
     "prisma:seed": "dotenv -e .env.development -- npx prisma db seed",
     "build": "dotenv -e .env.production.local -- nest build",
-    "migrate:deploy": "dotenv -e .env.production.local -- npx prisma migrate deploy",
-    "prisma:seed:deploy": "dotenv -e .env.production.local -- npx prisma db seed"
+    "migrate:deploy": "dotenv -e .env.production.local -- npx prisma migrate deploy"
   },
   "dependencies": {
     "@nestjs-modules/ioredis": "^2.0.2",

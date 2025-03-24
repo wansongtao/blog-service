@@ -34,7 +34,9 @@ export class AuthorityGuard implements CanActivate {
       return true;
     }
 
-    const permissions = await this.redisService.getUserPermission(user.userId);
+    const permissions = await this.redisService
+      .userPermissions(user.userId)
+      .get();
     if (
       permissions.some((permission) => needPermissions.includes(permission))
     ) {
@@ -45,7 +47,7 @@ export class AuthorityGuard implements CanActivate {
       user.userId,
     );
     if (userPermissions.length) {
-      this.redisService.setUserPermission(user.userId, userPermissions);
+      this.redisService.userPermissions(user.userId).set(userPermissions);
     }
     if (
       userPermissions.some((permission) => needPermissions.includes(permission))

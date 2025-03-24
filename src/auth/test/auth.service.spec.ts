@@ -4,7 +4,6 @@ import { RedisService } from 'src/redis/redis.service';
 import { UserService } from 'src/user/user.service';
 import { JwtService } from '@nestjs/jwt';
 import { create as createCaptcha } from 'svg-captcha';
-import { BadRequestException } from '@nestjs/common';
 import { getBaseConfig } from 'src/common/config';
 import bcrypt from 'bcrypt';
 import { UserPermissionInfoEntity } from 'src/user/entities/user-permission-info.entity';
@@ -27,9 +26,6 @@ describe('AuthService Unit Test', () => {
   const mockPassword = 'testPass';
   const mockToken = 'jwt-token';
   const mockRefreshToken = 'refresh-token';
-  const mockCaptchaKey = 'captcha-key';
-  const mockSsoKey = 'sso-key';
-  const mockSignInErrorsKey = 'errors-key';
 
   const mockBaseConfig = {
     signInErrorLimit: 5,
@@ -65,11 +61,15 @@ describe('AuthService Unit Test', () => {
 
   describe('generateCaptcha', () => {
     beforeEach(() => {
-      redisService.generateCaptchaKey.mockReturnValue(mockCaptchaKey);
-      redisService.setCaptcha.mockResolvedValue('OK');
+      const captchaHandler = {
+        set: jest.fn().mockResolvedValue('OK'),
+        get: jest.fn().mockResolvedValue(mockCaptchaText),
+        remove: jest.fn().mockResolvedValue(1),
+      };
+      redisService.captcha.mockReturnValue(captchaHandler);
     });
 
-    it('should generate captcha and store in redis', () => {
+    it('should generate a captcha and store it in redis', () => {
       const result = authService.generateCaptcha(mockIp, mockUserAgent);
 
       expect(createCaptcha).toHaveBeenCalledWith({
@@ -80,55 +80,93 @@ describe('AuthService Unit Test', () => {
         background: '#f0f0f0',
       });
 
-      expect(redisService.generateCaptchaKey).toHaveBeenCalledWith(
-        mockIp,
-        mockUserAgent,
-      );
+      expect(redisService.captcha).toHaveBeenCalledWith(mockIp, mockUserAgent);
+      expect(
+        redisService.captcha(mockIp, mockUserAgent).set,
+      ).toHaveBeenCalledWith(mockCaptchaText);
 
-      expect(redisService.setCaptcha).toHaveBeenCalledWith(
-        mockCaptchaKey,
-        mockCaptchaText,
-      );
+      const expectedBase64 = `data:image/svg+xml;base64,${Buffer.from(mockCaptchaSvg).toString('base64')}`;
+      expect(result).toEqual({ captcha: expectedBase64 });
+    });
 
-      expect(result).toEqual({
-        captcha: `data:image/svg+xml;base64,${Buffer.from(mockCaptchaSvg).toString('base64')}`,
-      });
+    it('should include correct data in the SVG captcha', () => {
+      authService.generateCaptcha(mockIp, mockUserAgent);
+
+      expect(createCaptcha).toHaveBeenCalledWith(
+        expect.objectContaining({
+          size: 4,
+          noise: 2,
+          color: true,
+          ignoreChars: '0o1i',
+          background: '#f0f0f0',
+        }),
+      );
+    });
+
+    it('should return the captcha in base64 format', () => {
+      const result = authService.generateCaptcha(mockIp, mockUserAgent);
+
+      const base64Data = Buffer.from(mockCaptchaSvg).toString('base64');
+      expect(result.captcha).toBe(`data:image/svg+xml;base64,${base64Data}`);
     });
   });
 
   describe('validateCaptcha', () => {
     beforeEach(() => {
-      redisService.generateCaptchaKey.mockReturnValue(mockCaptchaKey);
+      const captchaHandler = {
+        set: jest.fn().mockResolvedValue('OK'),
+        get: jest.fn().mockResolvedValue(mockCaptchaText),
+        remove: jest.fn().mockResolvedValue(1),
+      };
+      redisService.captcha.mockReturnValue(captchaHandler);
     });
 
-    it('should return true for valid captcha and delete it', async () => {
-      redisService.getCaptcha.mockResolvedValue(mockCaptchaText);
-
+    it('should return true for valid captcha', async () => {
       const result = await authService.validateCaptcha(
         mockIp,
         mockUserAgent,
         mockCaptchaText,
       );
 
+      expect(redisService.captcha).toHaveBeenCalledWith(mockIp, mockUserAgent);
+      expect(
+        redisService.captcha(mockIp, mockUserAgent).get,
+      ).toHaveBeenCalled();
+      expect(
+        redisService.captcha(mockIp, mockUserAgent).remove,
+      ).toHaveBeenCalled();
       expect(result).toBe(true);
-      expect(redisService.delCaptcha).toHaveBeenCalledWith(mockCaptchaKey);
     });
 
-    it('should return false for invalid captcha', async () => {
-      redisService.getCaptcha.mockResolvedValue(mockCaptchaText);
-
+    it('should return true for valid captcha case insensitive', async () => {
       const result = await authService.validateCaptcha(
         mockIp,
         mockUserAgent,
-        'wrong',
+        mockCaptchaText.toUpperCase(),
+      );
+
+      expect(result).toBe(true);
+    });
+
+    it('should return false for invalid captcha', async () => {
+      const result = await authService.validateCaptcha(
+        mockIp,
+        mockUserAgent,
+        'wrongCaptcha',
       );
 
       expect(result).toBe(false);
-      expect(redisService.delCaptcha).not.toHaveBeenCalled();
+      expect(
+        redisService.captcha(mockIp, mockUserAgent).remove,
+      ).not.toHaveBeenCalled();
     });
 
-    it('should return false when captcha not found', async () => {
-      redisService.getCaptcha.mockResolvedValue(null);
+    it('should return false when captcha not found in redis', async () => {
+      redisService.captcha.mockReturnValue({
+        get: jest.fn().mockResolvedValue(null),
+        set: jest.fn(),
+        remove: jest.fn(),
+      });
 
       const result = await authService.validateCaptcha(
         mockIp,
@@ -259,324 +297,426 @@ describe('AuthService Unit Test', () => {
       captcha: mockCaptchaText,
     };
 
+    const mockLoginAttempts = {
+      get: jest.fn(),
+      increment: jest.fn(),
+      reset: jest.fn(),
+      set: jest.fn(),
+    };
+
+    const mockSsoHandler = {
+      set: jest.fn(),
+      get: jest.fn(),
+      remove: jest.fn(),
+    };
+
     beforeEach(() => {
-      redisService.generateSignInErrorsKey.mockReturnValue(mockSignInErrorsKey);
-      redisService.generateSSOKey.mockReturnValue(mockSsoKey);
-      redisService.getSignInErrors.mockResolvedValue(0);
-      redisService.setSSO.mockResolvedValue('OK');
-    });
+      redisService.trackLoginAttempts.mockReturnValue(mockLoginAttempts);
+      redisService.sso.mockReturnValue(mockSsoHandler);
+      mockLoginAttempts.get.mockResolvedValue(0);
+      mockLoginAttempts.increment.mockResolvedValue(1);
 
-    it('should throw error when sign in errors exceed limit', async () => {
-      redisService.getSignInErrors.mockResolvedValue(
-        mockBaseConfig.signInErrorLimit,
-      );
+      // Mock validateCaptcha
+      jest.spyOn(authService, 'validateCaptcha').mockResolvedValue(true);
 
-      await expect(
-        authService.login(mockLoginDto, mockIp, mockUserAgent),
-      ).rejects.toThrow(
-        new BadRequestException(
-          `验证码/用户名/密码错误次数过多，请${
-            mockBaseConfig.signInErrorExpireIn / 60
-          }分钟后再试`,
-        ),
-      );
-    });
-
-    it('should throw error for invalid captcha', async () => {
-      redisService.getCaptcha.mockResolvedValue('differentCaptcha');
-
-      await expect(
-        authService.login(mockLoginDto, mockIp, mockUserAgent),
-      ).rejects.toThrow(new BadRequestException('验证码错误'));
-
-      expect(redisService.setSignInErrors).toHaveBeenCalledWith(
-        mockSignInErrorsKey,
-        1,
-      );
-    });
-
-    it('should throw error for invalid credentials', async () => {
-      redisService.getCaptcha.mockResolvedValue(mockCaptchaText);
-      redisService.generateCaptchaKey.mockReturnValue(mockCaptchaKey);
-      userService.findUser.mockResolvedValue(null);
-
-      await expect(
-        authService.login(mockLoginDto, mockIp, mockUserAgent),
-      ).rejects.toThrow(
-        new BadRequestException('用户名或密码错误，或账号已被禁用'),
-      );
-
-      expect(redisService.setSignInErrors).toHaveBeenCalledWith(
-        mockSignInErrorsKey,
-        1,
-      );
-    });
-
-    it('should login successfully and return tokens', async () => {
-      const mockUser = {
-        id: 'testId',
+      // Mock validateUser
+      jest.spyOn(authService, 'validateUser').mockResolvedValue({
         userName: mockUserName,
-        password: mockPassword,
-        disabled: false,
-      };
-      const mockTokens = {
+        userId: 'user-id',
+      });
+
+      // Mock generateTokens
+      jest.spyOn(authService, 'generateTokens').mockReturnValue({
         accessToken: mockToken,
         refreshToken: mockRefreshToken,
-      };
+      });
+    });
 
-      redisService.getCaptcha.mockResolvedValue(mockCaptchaText);
-      redisService.generateCaptchaKey.mockReturnValue(mockCaptchaKey);
-      userService.findUser.mockResolvedValue(mockUser);
-      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
-
-      jest.spyOn(authService, 'generateTokens').mockReturnValue(mockTokens);
-
+    it('should login successfully with valid credentials', async () => {
       const result = await authService.login(
         mockLoginDto,
         mockIp,
         mockUserAgent,
       );
 
-      expect(result).toEqual(mockTokens);
-      expect(redisService.setSSO).toHaveBeenCalledWith(
-        mockSsoKey,
-        mockTokens.accessToken,
+      expect(redisService.trackLoginAttempts).toHaveBeenCalledWith(
+        mockIp,
+        mockUserAgent,
       );
+      expect(authService.validateCaptcha).toHaveBeenCalledWith(
+        mockIp,
+        mockUserAgent,
+        mockCaptchaText,
+      );
+      expect(authService.validateUser).toHaveBeenCalledWith(
+        mockUserName,
+        mockPassword,
+      );
+      expect(authService.generateTokens).toHaveBeenCalledWith({
+        userName: mockUserName,
+        userId: 'user-id',
+      });
+      expect(redisService.sso).toHaveBeenCalledWith('user-id');
+      expect(mockSsoHandler.set).toHaveBeenCalledWith(mockToken);
+
+      expect(result).toEqual({
+        accessToken: mockToken,
+        refreshToken: mockRefreshToken,
+      });
+    });
+
+    it('should throw BadRequestException if too many login attempts', async () => {
+      mockLoginAttempts.get.mockResolvedValue(mockBaseConfig.signInErrorLimit);
+
+      await expect(
+        authService.login(mockLoginDto, mockIp, mockUserAgent),
+      ).rejects.toThrow('验证码/用户名/密码错误次数过多，请30分钟后再试');
+
+      expect(authService.validateCaptcha).not.toHaveBeenCalled();
+      expect(authService.validateUser).not.toHaveBeenCalled();
+    });
+
+    it('should throw BadRequestException if captcha is invalid', async () => {
+      jest.spyOn(authService, 'validateCaptcha').mockResolvedValue(false);
+
+      await expect(
+        authService.login(mockLoginDto, mockIp, mockUserAgent),
+      ).rejects.toThrow('验证码错误');
+
+      expect(mockLoginAttempts.increment).toHaveBeenCalled();
+      expect(authService.validateUser).not.toHaveBeenCalled();
+    });
+
+    it('should throw BadRequestException if user credentials are invalid', async () => {
+      jest.spyOn(authService, 'validateUser').mockResolvedValue(false);
+
+      await expect(
+        authService.login(mockLoginDto, mockIp, mockUserAgent),
+      ).rejects.toThrow('用户名或密码错误，或账号已被禁用');
+
+      expect(mockLoginAttempts.increment).toHaveBeenCalled();
+      expect(authService.generateTokens).not.toHaveBeenCalled();
     });
   });
 
   describe('logout', () => {
-    it('should logout successfully', async () => {
-      redisService.generateSSOKey.mockReturnValue(mockSsoKey);
-      redisService.delSSO.mockResolvedValue(1);
+    const mockUserId = 'user-id';
+    const mockAccessToken = 'jwt-token';
 
-      await authService.logout(mockToken, mockUserName);
+    const mockBlackListHandler = {
+      set: jest.fn().mockResolvedValue('OK'),
+      isBlackListed: jest.fn(),
+    };
 
-      expect(redisService.setBlackList).toHaveBeenCalledWith(mockToken);
-      expect(redisService.delSSO).toHaveBeenCalledWith(mockSsoKey);
-      expect(redisService.generateSSOKey).toHaveBeenCalledWith(mockUserName);
+    const mockSsoHandler = {
+      set: jest.fn(),
+      get: jest.fn(),
+      remove: jest.fn().mockResolvedValue(1),
+    };
+
+    beforeEach(() => {
+      redisService.blackList.mockReturnValue(mockBlackListHandler);
+      redisService.sso.mockReturnValue(mockSsoHandler);
+    });
+
+    it('should add token to blacklist and remove SSO token', async () => {
+      await authService.logout(mockAccessToken, mockUserId);
+
+      expect(redisService.blackList).toHaveBeenCalled();
+      expect(mockBlackListHandler.set).toHaveBeenCalledWith(mockAccessToken);
+
+      expect(redisService.sso).toHaveBeenCalledWith(mockUserId);
+      expect(mockSsoHandler.remove).toHaveBeenCalled();
+    });
+
+    it('should handle the logout process in the correct order', async () => {
+      await authService.logout(mockAccessToken, mockUserId);
+
+      // Check the calling order
+      expect(redisService.blackList.mock.invocationCallOrder[0]).toBeLessThan(
+        redisService.sso.mock.invocationCallOrder[0],
+      );
+      expect(mockBlackListHandler.set.mock.invocationCallOrder[0]).toBeLessThan(
+        mockSsoHandler.remove.mock.invocationCallOrder[0],
+      );
     });
   });
 
   describe('refreshToken', () => {
+    const mockUserId = 'user-id';
+    const mockUserName = 'testUser';
+    const mockAccessToken = 'access-token';
     const mockRefreshToken = 'refresh-token';
-    const mockPayload = { userId: 'testId', userName: 'testUser' };
+    const mockPayload = { userId: mockUserId, userName: mockUserName };
+
+    const mockBlackListHandler = {
+      set: jest.fn(),
+      isBlackListed: jest.fn(),
+    };
+
+    const mockSsoHandler = {
+      get: jest.fn(),
+      set: jest.fn(),
+      remove: jest.fn(),
+    };
 
     beforeEach(() => {
-      redisService.isBlackListed.mockResolvedValue(false);
+      redisService.blackList.mockReturnValue(mockBlackListHandler);
+      redisService.sso.mockReturnValue(mockSsoHandler);
+      mockBlackListHandler.isBlackListed.mockResolvedValue(false);
+      mockSsoHandler.get.mockResolvedValue(mockAccessToken);
+
       jwtService.verify.mockReturnValue(mockPayload);
-      redisService.getSSO.mockResolvedValue(mockToken);
-    });
 
-    it('should throw error for blacklisted token', async () => {
-      redisService.isBlackListed.mockResolvedValue(true);
-
-      await expect(
-        authService.refreshToken(mockToken, mockRefreshToken),
-      ).rejects.toThrow(new BadRequestException('请重新登录'));
-    });
-
-    it('should throw error for invalid refresh token', async () => {
-      jwtService.verify.mockImplementation(() => {
-        throw new Error();
+      jest.spyOn(authService, 'validateUser').mockResolvedValue(mockPayload);
+      jest.spyOn(authService, 'generateTokens').mockReturnValue({
+        accessToken: 'new-access-token',
+        refreshToken: 'new-refresh-token',
       });
-
-      await expect(
-        authService.refreshToken(mockToken, mockRefreshToken),
-      ).rejects.toThrow(new BadRequestException('请重新登录'));
     });
 
-    it('should throw error for different token', async () => {
-      redisService.getSSO.mockResolvedValue('differentToken');
-
-      await expect(
-        authService.refreshToken(mockToken, mockRefreshToken),
-      ).rejects.toThrow(
-        new BadRequestException('该账号已在其他地方登录，请重新登录'),
-      );
-    });
-
-    it('should throw error for invalid user', async () => {
-      jwtService.verify.mockReturnValue(mockPayload);
-      userService.findUser.mockResolvedValue(null);
-
-      await expect(
-        authService.refreshToken(mockToken, mockRefreshToken),
-      ).rejects.toThrow(new BadRequestException('用户不存在或账号已被禁用'));
-    });
-
-    it('should refresh token successfully', async () => {
-      const mockTokens = {
-        accessToken: mockToken,
-        refreshToken: mockRefreshToken,
-      };
-
-      jwtService.verify.mockReturnValue(mockPayload);
-      userService.findUser.mockResolvedValue({
-        userName: 'testUser',
-        id: 'testId',
-        password: 'hashedPassword',
-        disabled: false,
-      });
+    it('should refresh tokens successfully', async () => {
       const result = await authService.refreshToken(
-        mockToken,
+        mockAccessToken,
         mockRefreshToken,
       );
 
-      expect(result).toEqual(mockTokens);
-      expect(redisService.setSSO).toHaveBeenCalledWith(mockSsoKey, mockToken);
+      expect(redisService.blackList).toHaveBeenCalled();
+      expect(mockBlackListHandler.isBlackListed).toHaveBeenCalledWith(
+        mockAccessToken,
+      );
+      expect(jwtService.verify).toHaveBeenCalledWith(mockRefreshToken);
+      expect(redisService.sso).toHaveBeenCalledWith(mockUserId);
+      expect(mockSsoHandler.get).toHaveBeenCalled();
+      expect(authService.validateUser).toHaveBeenCalledWith(
+        mockUserName,
+        undefined,
+        false,
+      );
+      expect(authService.generateTokens).toHaveBeenCalledWith(mockPayload);
+      expect(mockSsoHandler.set).toHaveBeenCalledWith('new-access-token');
+
+      expect(result).toEqual({
+        accessToken: 'new-access-token',
+        refreshToken: 'new-refresh-token',
+      });
+    });
+
+    it('should throw UnauthorizedException if token is blacklisted', async () => {
+      mockBlackListHandler.isBlackListed.mockResolvedValue(true);
+
+      await expect(
+        authService.refreshToken(mockAccessToken, mockRefreshToken),
+      ).rejects.toThrow('请重新登录');
+
+      expect(jwtService.verify).not.toHaveBeenCalled();
+    });
+
+    it('should throw UnauthorizedException if refresh token is invalid', async () => {
+      jwtService.verify.mockImplementation(() => {
+        throw new Error('Invalid token');
+      });
+
+      await expect(
+        authService.refreshToken(mockAccessToken, mockRefreshToken),
+      ).rejects.toThrow('请重新登录');
+
+      expect(redisService.sso).not.toHaveBeenCalled();
+    });
+
+    it('should throw UnauthorizedException if access token does not match stored token', async () => {
+      mockSsoHandler.get.mockResolvedValue('different-token');
+
+      await expect(
+        authService.refreshToken(mockAccessToken, mockRefreshToken),
+      ).rejects.toThrow('该账号已在其他地方登录，请重新登录');
+
+      expect(authService.validateUser).not.toHaveBeenCalled();
+    });
+
+    it('should throw UnauthorizedException if user does not exist or is disabled', async () => {
+      jest.spyOn(authService, 'validateUser').mockResolvedValue(false);
+
+      await expect(
+        authService.refreshToken(mockAccessToken, mockRefreshToken),
+      ).rejects.toThrow('用户不存在或账号已被禁用');
+
+      expect(authService.generateTokens).not.toHaveBeenCalled();
     });
   });
 
   describe('getUserInfo', () => {
-    const mockUserInfo = {
-      name: 'testNickName',
-      avatar: '',
-      roles: ['admin', 'user'],
-      permissions: ['testPermission'],
-      menus: [],
+    const mockUserId = 'user-id';
+    const mockUserPermissions = {
+      set: jest.fn().mockResolvedValue('OK'),
+      get: jest.fn(),
+      remove: jest.fn(),
     };
 
-    const userPermissionInfo: UserPermissionInfoEntity[] = [
+    const mockUserPermissionInfo: UserPermissionInfoEntity[] = [
       {
-        user_name: 'test',
-        nick_name: 'testNickName',
-        avatar: '',
-        role_names: 'admin,user',
-        pid: 1,
-        id: 10,
-        name: 'testName',
-        path: 'testPath',
-        permission: 'testPermission',
-        type: 'BUTTON',
-        icon: 'testIcon',
-        component: 'testComponent',
-        redirect: 'testRedirect',
+        id: 1,
+        pid: 0,
+        user_name: 'testUser',
+        nick_name: 'Test User',
+        avatar: 'avatar.png',
+        role_names: 'admin,editor',
+        permission: 'system:user:list',
+        type: 'MENU',
+        name: 'User Management',
+        path: '/user',
+        component: 'UserList',
+        cache: true,
         hidden: false,
+        icon: 'user',
+        redirect: null,
+        props: null,
         sort: 1,
+      },
+      {
+        id: 2,
+        pid: 1,
+        user_name: 'testUser',
+        nick_name: 'Test User',
+        avatar: 'avatar.png',
+        role_names: 'admin,editor',
+        permission: 'system:user:add',
+        type: 'BUTTON',
+        name: 'Add User',
+        path: null,
+        component: null,
         cache: false,
-        props: false,
+        hidden: false,
+        icon: null,
+        redirect: null,
+        props: null,
+        sort: 1,
       },
     ];
 
-    it('should throw error for invalid user', async () => {
-      userService.findUserPermissionInfo.mockResolvedValue(null);
+    beforeEach(() => {
+      userService.findUserPermissionInfo.mockResolvedValue(
+        mockUserPermissionInfo,
+      );
+      redisService.userPermissions.mockReturnValue(mockUserPermissions);
+    });
 
-      await expect(authService.getUserInfo('testId')).rejects.toThrow(
-        new BadRequestException('用户不存在或账号已被禁用'),
+    it('should return user info with permissions and menus', async () => {
+      const result = await authService.getUserInfo(mockUserId);
+
+      expect(userService.findUserPermissionInfo).toHaveBeenCalledWith(
+        mockUserId,
+      );
+      expect(redisService.userPermissions).toHaveBeenCalledWith(mockUserId);
+      expect(mockUserPermissions.set).toHaveBeenCalledWith([
+        'system:user:list',
+        'system:user:add',
+      ]);
+
+      expect(result).toEqual({
+        name: 'Test User',
+        avatar: 'avatar.png',
+        roles: ['admin', 'editor'],
+        permissions: ['system:user:list', 'system:user:add'],
+        menus: expect.any(Array),
+      });
+
+      // Check if menus are properly generated
+      expect(result.menus.length).toBe(1);
+      expect(result.menus[0]).toMatchObject({
+        id: 1,
+        name: 'User Management',
+        path: '/user',
+      });
+    });
+
+    it('should return user info for admin with full permissions', async () => {
+      const adminInfo = [
+        {
+          ...mockUserPermissionInfo[0],
+          user_name: mockBaseConfig.defaultAdmin.username,
+        },
+      ];
+
+      userService.findUserPermissionInfo.mockResolvedValue(adminInfo);
+
+      const result = await authService.getUserInfo(mockUserId);
+
+      expect(result.permissions).toEqual([
+        mockBaseConfig.defaultAdmin.permission,
+      ]);
+      expect(mockUserPermissions.set).toHaveBeenCalledWith([
+        mockBaseConfig.defaultAdmin.permission,
+      ]);
+    });
+
+    it('should return user info without permissions if user has no roles', async () => {
+      const noRoleInfo = [
+        {
+          ...mockUserPermissionInfo[0],
+          role_names: '',
+        },
+      ];
+
+      userService.findUserPermissionInfo.mockResolvedValue(noRoleInfo);
+
+      const result = await authService.getUserInfo(mockUserId);
+
+      expect(result.roles).toEqual([]);
+      expect(result.permissions).toEqual([]);
+      expect(result.menus).toEqual([]);
+      expect(mockUserPermissions.set).not.toHaveBeenCalled();
+    });
+
+    it('should use username if nickname is not provided', async () => {
+      const noNicknameInfo = [
+        {
+          ...mockUserPermissionInfo[0],
+          nick_name: null,
+        },
+      ];
+
+      userService.findUserPermissionInfo.mockResolvedValue(noNicknameInfo);
+
+      const result = await authService.getUserInfo(mockUserId);
+
+      expect(result.name).toBe(noNicknameInfo[0].user_name);
+    });
+
+    it('should throw NotFoundException if user does not exist', async () => {
+      userService.findUserPermissionInfo.mockResolvedValue([]);
+
+      await expect(authService.getUserInfo(mockUserId)).rejects.toThrow(
+        '用户不存在或账号已被禁用',
       );
     });
 
-    it('should return user info successfully', async () => {
-      userService.findUserPermissionInfo.mockResolvedValue(userPermissionInfo);
+    it('should filter out button type items from menus', async () => {
+      const result = await authService.getUserInfo(mockUserId);
 
-      const result = await authService.getUserInfo('testId');
-
-      expect(result).toEqual(mockUserInfo);
-    });
-
-    it('should return user info with default admin permission', async () => {
-      userService.findUserPermissionInfo.mockResolvedValue([
-        {
-          ...userPermissionInfo[0],
-          user_name: mockBaseConfig.defaultAdmin.username,
-        },
-      ]);
-
-      const result = await authService.getUserInfo('testId');
-
-      expect(result).toEqual({
-        ...mockUserInfo,
-        permissions: [mockBaseConfig.defaultAdmin.permission],
+      // Ensure only MENU type items are included in menus
+      const menuItemIds = result.menus.flatMap((menu) => {
+        return [menu.id, ...(menu.children?.map((child) => child.id) || [])];
       });
+
+      expect(menuItemIds).toContain(1);
+      expect(menuItemIds).not.toContain(2); // Button type should be excluded
     });
 
-    it('should return user info without roles', async () => {
-      userService.findUserPermissionInfo.mockResolvedValue([
-        {
-          ...userPermissionInfo[0],
-          role_names: '',
-        },
-      ]);
+    it('should correctly map menu properties', async () => {
+      const result = await authService.getUserInfo(mockUserId);
 
-      const result = await authService.getUserInfo('testId');
-
-      expect(result).toEqual({
-        ...mockUserInfo,
-        roles: [],
-        permissions: [],
-      });
-    });
-
-    it('should return user info without menus', async () => {
-      userService.findUserPermissionInfo.mockResolvedValue([
-        {
-          ...userPermissionInfo[0],
-          type: 'MENU',
-          nick_name: '',
-          permission: '',
-        },
-        {
-          ...userPermissionInfo[0],
-          type: 'MENU',
-          id: 1,
-          pid: 0,
-          permission: '',
-        },
-        {
-          ...userPermissionInfo[0],
-          type: 'MENU',
-          id: 11,
-          pid: 1,
-        },
-        {
-          ...userPermissionInfo[0],
-          type: 'MENU',
-          id: 12,
-          pid: 100,
-          permission: '',
-        },
-      ]);
-
-      const result = await authService.getUserInfo('testId');
-      const menu = {
-        name: 'testName',
-        path: 'testPath',
-        component: 'testComponent',
-        cache: false,
+      expect(result.menus[0]).toMatchObject({
+        id: 1,
+        pid: 0,
+        name: 'User Management',
+        path: '/user',
+        component: 'UserList',
+        cache: true,
         hidden: false,
-        icon: 'testIcon',
-        redirect: 'testRedirect',
-        props: false,
-      };
-
-      expect(result).toEqual({
-        ...mockUserInfo,
-        name: 'test',
-        menus: [
-          {
-            id: 1,
-            pid: 0,
-            ...menu,
-            children: [
-              {
-                id: 10,
-                pid: 1,
-                ...menu,
-              },
-              {
-                id: 11,
-                pid: 1,
-                ...menu,
-              },
-            ],
-          },
-          {
-            id: 12,
-            pid: 100,
-            ...menu,
-          },
-        ],
+        icon: 'user',
+        redirect: null,
+        props: null,
       });
     });
   });

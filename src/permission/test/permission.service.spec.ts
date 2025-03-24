@@ -47,57 +47,203 @@ describe('PermissionService', () => {
   });
 
   describe('findAll', () => {
-    it('should return empty list when no permissions found', async () => {
+    it('should return empty list when no permissions match criteria', async () => {
+      const mockPermissions = [];
       const mockFindMany = prismaService.permission.findMany as jest.Mock;
-      mockFindMany.mockResolvedValue([]);
+      mockFindMany.mockResolvedValue(mockPermissions);
 
-      const result = await permissionService.findAll({});
+      const query = { page: 1, pageSize: 10 };
+      const result = await permissionService.findAll(query);
+
       expect(result).toEqual({ list: [], total: 0 });
+      expect(mockFindMany).toHaveBeenCalledWith({
+        where: {
+          deleted: false,
+          name: {
+            contains: undefined,
+            mode: 'insensitive',
+          },
+          disabled: undefined,
+          type: undefined,
+          createdAt: {
+            gte: undefined,
+            lte: undefined,
+          },
+        },
+        select: {
+          id: true,
+          pid: true,
+          name: true,
+          type: true,
+          permission: true,
+          icon: true,
+          path: true,
+          sort: true,
+          disabled: true,
+          createdAt: true,
+        },
+        orderBy: [{ sort: 'desc' }, { createdAt: 'desc' }],
+      });
     });
 
-    it('should return paginated permission list', async () => {
+    it('should return paginated list when permissions found', async () => {
+      const createdAt = new Date();
       const mockPermissions = [
         {
-          id: '1',
-          pid: '0',
+          id: 1,
+          pid: 0,
           name: 'test1',
-          type: 1,
-          permission: 'test:1',
+          type: 'MENU',
+          permission: null,
           icon: 'icon1',
           path: '/test1',
           sort: 1,
           disabled: false,
-          createdAt: new Date('2023-01-01'),
+          createdAt,
         },
         {
-          id: '2',
-          pid: '0',
+          id: 2,
+          pid: 1,
           name: 'test2',
-          type: 1,
-          permission: 'test:2',
+          type: 'BUTTON',
+          permission: 'test:permission',
           icon: 'icon2',
           path: '/test2',
           sort: 2,
           disabled: false,
-          createdAt: new Date('2023-01-02'),
+          createdAt,
         },
       ];
 
       const mockFindMany = prismaService.permission.findMany as jest.Mock;
       mockFindMany.mockResolvedValue(mockPermissions);
 
-      const result = await permissionService.findAll({
-        page: 1,
-        pageSize: 10,
-      });
+      const query = {
+        keyword: 'test',
+        sort: 'asc' as const,
+      };
+      const result = await permissionService.findAll(query);
 
-      expect(result.total).toBe(2);
-      expect(result.list).toHaveLength(2);
+      expect(result.total).toBe(1); // Because mockPermissions will generate 1 root item with 1 child
+      expect(result.list).toHaveLength(1);
       expect(result.list[0]).toMatchObject({
-        id: '1',
+        id: 1,
         name: 'test1',
-        createdAt: '2023-01-01T00:00:00.000Z',
+        children: [expect.objectContaining({ id: 2, name: 'test2' })],
       });
+    });
+
+    it('should apply all filtering criteria correctly', async () => {
+      const mockPermissions = [];
+      const mockFindMany = prismaService.permission.findMany as jest.Mock;
+      mockFindMany.mockResolvedValue(mockPermissions);
+
+      const beginTime = '2023-01-01';
+      const endTime = '2023-12-31';
+
+      const query = {
+        page: 2,
+        pageSize: 5,
+        keyword: 'admin',
+        disabled: false,
+        type: 'MENU' as const,
+        sort: 'asc' as const,
+        beginTime,
+        endTime,
+      };
+
+      await permissionService.findAll(query);
+
+      expect(mockFindMany).toHaveBeenCalledWith({
+        where: {
+          deleted: false,
+          name: {
+            contains: 'admin',
+            mode: 'insensitive',
+          },
+          disabled: false,
+          type: 'MENU',
+          createdAt: {
+            gte: beginTime,
+            lte: endTime,
+          },
+        },
+        select: {
+          id: true,
+          pid: true,
+          name: true,
+          type: true,
+          permission: true,
+          icon: true,
+          path: true,
+          sort: true,
+          disabled: true,
+          createdAt: true,
+        },
+        orderBy: [{ sort: 'desc' }, { createdAt: 'asc' }],
+      });
+    });
+
+    it('should return empty list when page is out of bounds', async () => {
+      const mockPermissions = [
+        {
+          id: 1,
+          pid: 0,
+          name: 'test',
+          type: 'MENU',
+          permission: null,
+          icon: 'icon',
+          path: '/test',
+          sort: 1,
+          disabled: false,
+          createdAt: '2023-01-01',
+        },
+      ];
+
+      const mockFindMany = prismaService.permission.findMany as jest.Mock;
+      mockFindMany.mockResolvedValue(mockPermissions);
+
+      const query = { page: 3, pageSize: 10 }; // Page 3 is out of bounds for 1 item
+      const result = await permissionService.findAll(query);
+
+      expect(result).toEqual({ list: [], total: 0 });
+    });
+
+    it('should return empty list when page is out of permissionTree', async () => {
+      const mockPermissions = [
+        {
+          id: 1,
+          pid: 0,
+          name: 'test',
+          type: 'MENU',
+          permission: null,
+          icon: 'icon',
+          path: '/test',
+          sort: 1,
+          disabled: false,
+          createdAt: new Date(),
+        },
+        {
+          id: 2,
+          pid: 1,
+          name: 'test',
+          type: 'MENU',
+          permission: null,
+          icon: 'icon',
+          path: '/test',
+          sort: 1,
+          disabled: false,
+          createdAt: new Date(),
+        },
+      ];
+
+      const mockFindMany = prismaService.permission.findMany as jest.Mock;
+      mockFindMany.mockResolvedValue(mockPermissions);
+
+      const query = { page: 3, pageSize: 1 }; // Page 3 is out of bounds for 1 item
+      const result = await permissionService.findAll(query);
+
+      expect(result).toEqual({ list: [], total: 0 });
     });
   });
 
@@ -167,7 +313,7 @@ describe('PermissionService', () => {
       const mockFindMany = prismaService.permission.findMany as jest.Mock;
       mockFindMany.mockResolvedValue(mockPermissions);
 
-      const result = await permissionService.findTree(false);
+      const result = await permissionService.findTree();
 
       expect(result).toHaveLength(1);
       expect(result[0]).toMatchObject({
@@ -380,103 +526,6 @@ describe('PermissionService', () => {
     });
   });
 
-  describe('update', () => {
-    it('should throw error when permission not found', async () => {
-      const mockFindUnique = prismaService.permission.findUnique as jest.Mock;
-      mockFindUnique.mockResolvedValue(null);
-
-      await expect(permissionService.update(1, {})).rejects.toThrow(
-        '权限不存在',
-      );
-    });
-
-    it('should throw error when updating sensitive fields of used permission', async () => {
-      const mockPermission = {
-        id: 1,
-        type: 'MENU',
-        permission: 'test:permission',
-        pid: 0,
-        permissionInRole: [
-          {
-            roles: {
-              roleInUser: [{ userId: '1' }],
-            },
-          },
-        ],
-      };
-
-      const mockFindUnique = prismaService.permission.findUnique as jest.Mock;
-      mockFindUnique.mockResolvedValue(mockPermission);
-
-      const updateDto: UpdatePermissionDto = {
-        type: 'BUTTON',
-        permission: 'test:new',
-        pid: 1,
-      };
-
-      await expect(permissionService.update(1, updateDto)).rejects.toThrow(
-        '该权限已被角色使用，不能修改类型、权限标识、父权限',
-      );
-    });
-
-    it('should update permission with safe fields', async () => {
-      const mockPermission = {
-        id: 1,
-        permissionInRole: [],
-      };
-
-      const mockFindUnique = prismaService.permission.findUnique as jest.Mock;
-      mockFindUnique.mockResolvedValue(mockPermission);
-
-      const mockUpdate = prismaService.permission.update as jest.Mock;
-
-      const updateDto: UpdatePermissionDto = {
-        name: 'updated',
-        icon: 'new-icon',
-        path: '/new-path',
-        sort: 2,
-      };
-
-      await permissionService.update(1, updateDto);
-
-      expect(mockUpdate).toHaveBeenCalledWith({
-        where: { id: 1 },
-        data: updateDto,
-      });
-    });
-
-    it('should delete user permission cache when enabling permission', async () => {
-      const mockPermission = {
-        id: 1,
-        permissionInRole: [
-          {
-            roles: {
-              roleInUser: [{ userId: '1' }, { userId: '2' }],
-            },
-          },
-        ],
-      };
-
-      const mockFindUnique = prismaService.permission.findUnique as jest.Mock;
-      mockFindUnique.mockResolvedValue(mockPermission);
-
-      const mockUpdate = prismaService.permission.update as jest.Mock;
-      const mockDelCache = jest.spyOn(
-        permissionService['redisService'],
-        'delUserPermission',
-      );
-
-      await permissionService.update(1, { disabled: false });
-
-      expect(mockDelCache).toHaveBeenNthCalledWith(1, '1');
-      expect(mockDelCache).toHaveBeenNthCalledWith(2, '2');
-      expect(mockUpdate).toHaveBeenCalledWith({
-        where: { id: 1 },
-        data: { disabled: false },
-      });
-    });
-  });
-
   describe('remove', () => {
     it('should throw error when permission not found', async () => {
       const mockFindUnique = prismaService.permission.findUnique as jest.Mock;
@@ -533,6 +582,151 @@ describe('PermissionService', () => {
         where: { id: 1 },
         data: { deleted: true },
       });
+    });
+  });
+
+  describe('update', () => {
+    let mockRedisService;
+
+    beforeEach(() => {
+      mockRedisService = {
+        userPermissions: jest.fn().mockReturnValue({
+          remove: jest.fn(),
+        }),
+      };
+      (permissionService as any).redisService = mockRedisService;
+    });
+
+    it('should throw error when permission not found', async () => {
+      const mockFindUnique = prismaService.permission.findUnique as jest.Mock;
+      mockFindUnique.mockResolvedValue(null);
+
+      const updateDto: UpdatePermissionDto = {
+        name: 'updated name',
+      };
+
+      await expect(permissionService.update(1, updateDto)).rejects.toThrow(
+        '权限不存在',
+      );
+    });
+
+    it('should throw error when trying to modify sensitive fields of used permission', async () => {
+      const mockPermission = {
+        id: 1,
+        type: 'MENU',
+        permission: 'test:permission',
+        pid: 0,
+        permissionInRole: [{ roles: { roleInUser: [] } }],
+      };
+
+      const mockFindUnique = prismaService.permission.findUnique as jest.Mock;
+      mockFindUnique.mockResolvedValue(mockPermission);
+
+      const updateDto: UpdatePermissionDto = {
+        type: 'BUTTON',
+      };
+
+      await expect(permissionService.update(1, updateDto)).rejects.toThrow(
+        '该权限已被角色使用，不能修改类型、权限标识、父权限',
+      );
+    });
+
+    it('should update only safe fields', async () => {
+      const mockPermission = {
+        id: 1,
+        type: 'MENU',
+        permission: 'test:permission',
+        pid: 0,
+        name: 'old name',
+        permissionInRole: [],
+      };
+
+      const mockFindUnique = prismaService.permission.findUnique as jest.Mock;
+      mockFindUnique.mockResolvedValue(mockPermission);
+
+      const mockUpdate = prismaService.permission.update as jest.Mock;
+      mockUpdate.mockResolvedValue({});
+
+      const updateDto: UpdatePermissionDto = {
+        name: 'new name',
+        icon: 'new-icon',
+        sort: 5,
+        type: 'BUTTON', // Should be ignored as it's sensitive
+        permission: 'new:permission', // Should be ignored as it's sensitive
+      };
+
+      await permissionService.update(1, updateDto);
+
+      expect(mockUpdate).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: {
+          name: 'new name',
+          icon: 'new-icon',
+          sort: 5,
+        },
+      });
+
+      // Verify sensitive fields are not included
+      const updateData = mockUpdate.mock.calls[0][0].data;
+      expect(updateData).not.toHaveProperty('type');
+      expect(updateData).not.toHaveProperty('permission');
+    });
+
+    it('should clear user permission cache when enabling a disabled permission', async () => {
+      const userIds = ['user1', 'user2'];
+      const mockPermission = {
+        id: 1,
+        disabled: true,
+        permissionInRole: [
+          {
+            roles: {
+              roleInUser: [{ userId: userIds[0] }, { userId: userIds[1] }],
+            },
+          },
+        ],
+      };
+
+      const mockFindUnique = prismaService.permission.findUnique as jest.Mock;
+      mockFindUnique.mockResolvedValue(mockPermission);
+
+      const mockUpdate = prismaService.permission.update as jest.Mock;
+      mockUpdate.mockResolvedValue({});
+
+      const updateDto: UpdatePermissionDto = {
+        disabled: false,
+      };
+
+      await permissionService.update(1, updateDto);
+
+      expect(mockRedisService.userPermissions).toHaveBeenCalledTimes(2);
+      userIds.forEach((userId) => {
+        expect(mockRedisService.userPermissions).toHaveBeenCalledWith(userId);
+        expect(
+          mockRedisService.userPermissions(userId).remove,
+        ).toHaveBeenCalled();
+      });
+    });
+
+    it('should not clear user permission cache when not enabling a permission', async () => {
+      const mockPermission = {
+        id: 1,
+        disabled: true,
+        permissionInRole: [],
+      };
+
+      const mockFindUnique = prismaService.permission.findUnique as jest.Mock;
+      mockFindUnique.mockResolvedValue(mockPermission);
+
+      const mockUpdate = prismaService.permission.update as jest.Mock;
+      mockUpdate.mockResolvedValue({});
+
+      const updateDto: UpdatePermissionDto = {
+        name: 'updated name',
+      };
+
+      await permissionService.update(1, updateDto);
+
+      expect(mockRedisService.userPermissions).not.toHaveBeenCalled();
     });
   });
 

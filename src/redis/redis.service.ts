@@ -13,102 +13,109 @@ export class RedisService {
     private readonly configService: ConfigService,
   ) {}
 
-  generateCaptchaKey(ip: string, userAgent: string) {
-    const data = `${ip}:${userAgent}`;
-    const key = createHash('sha256').update(data).digest('hex');
-    return `captcha: ${key}`;
+  captcha(ip: string, userAgent: string) {
+    const generateKey = () => {
+      const data = `${ip}:${userAgent}`;
+      const key = createHash('sha256').update(data).digest('hex');
+      return `captcha: ${key}`;
+    };
+    const key = generateKey();
+
+    const set = (value: string) => {
+      const expiresIn = getBaseConfig(this.configService).captchaExpireIn;
+      return this.redis.set(key, value, 'EX', expiresIn);
+    };
+
+    return {
+      set,
+      get: () => {
+        return this.redis.get(key);
+      },
+      remove: () => {
+        return this.redis.del(key);
+      },
+    };
   }
 
-  setCaptcha(key: string, value: string, expiresIn?: number) {
-    if (expiresIn === undefined) {
-      expiresIn = getBaseConfig(this.configService).captchaExpireIn;
-    }
+  sso(userId: string) {
+    const key = `sso: ${userId}`;
 
-    return this.redis.set(key, value, 'EX', expiresIn);
+    return {
+      set: (value: string) => {
+        const time = getBaseConfig(this.configService).jwt.refreshTokenIn;
+        const expiresIn = getSeconds(parseInt(time), 'd');
+
+        return this.redis.set(key, value, 'EX', expiresIn);
+      },
+      get: () => {
+        return this.redis.get(key);
+      },
+      remove: () => {
+        return this.redis.del(key);
+      },
+    };
   }
 
-  getCaptcha(key: string) {
-    return this.redis.get(key);
+  trackLoginAttempts(ip: string, userAgent: string) {
+    const generateKey = () => {
+      const data = `${ip}:${userAgent}`;
+      const key = createHash('sha256').update(data).digest('hex');
+      return `login-attempts: ${key}`;
+    };
+
+    const key = generateKey();
+    const get = async () => {
+      const current = await this.redis.get(key);
+      return +(current ?? 0);
+    };
+    const set = (value: number) => {
+      const expiresIn = getBaseConfig(this.configService).signInErrorExpireIn;
+      return this.redis.set(key, value, 'EX', expiresIn);
+    };
+
+    return {
+      increment: async () => {
+        const current = await get();
+        return set(current + 1);
+      },
+      get,
+      reset: () => {
+        return this.redis.del(key);
+      },
+      set,
+    };
   }
 
-  delCaptcha(key: string) {
-    return this.redis.del(key);
+  blackList() {
+    return {
+      set: (token: string) => {
+        const expiresIn = getBaseConfig(this.configService).jwt.expiresIn;
+        return this.redis.set(token, 'logout', 'EX', expiresIn);
+      },
+      isBlackListed: async (token: string) => {
+        const has = await this.redis.exists(token);
+        return !!has;
+      },
+    };
   }
 
-  generateSSOKey(userId: string) {
-    return `sso: ${userId}`;
-  }
+  userPermissions(id: string) {
+    const key = `permissions: ${id}`;
 
-  setSSO(key: string, value: string, expiresIn?: number) {
-    if (expiresIn === undefined) {
-      const time = getBaseConfig(this.configService).jwt.refreshTokenIn;
-      expiresIn = getSeconds(parseInt(time), 'd');
-    }
-
-    return this.redis.set(key, value, 'EX', expiresIn);
-  }
-
-  getSSO(key: string) {
-    return this.redis.get(key);
-  }
-
-  delSSO(key: string) {
-    return this.redis.del(key);
-  }
-
-  generateSignInErrorsKey(ip: string, userAgent: string) {
-    const data = `${ip}:${userAgent}`;
-    const key = createHash('sha256').update(data).digest('hex');
-    return `sign-in:errors: ${key}`;
-  }
-
-  setSignInErrors(key: string, value: number) {
-    const expiresIn = getBaseConfig(this.configService).signInErrorExpireIn;
-    return this.redis.set(key, value, 'EX', expiresIn);
-  }
-
-  async getSignInErrors(key: string) {
-    const result = (await this.redis.get(key)) || 0;
-    return +result;
-  }
-
-  delSignInErrors(key: string) {
-    return this.redis.del(key);
-  }
-
-  generateBlackListKey(token: string) {
-    return `blacklist: ${token}`;
-  }
-
-  setBlackList(token: string) {
-    const key = this.generateBlackListKey(token);
-    const expiresIn = getBaseConfig(this.configService).jwt.expiresIn;
-    this.redis.set(key, 'logout', 'EX', expiresIn);
-  }
-
-  async isBlackListed(token: string) {
-    const key = this.generateBlackListKey(token);
-    const has = await this.redis.exists(key);
-    return !!has;
-  }
-
-  generateUserPermissionKey(id: string) {
-    return `permission: ${id}`;
-  }
-
-  getUserPermission(id: string) {
-    const key = this.generateUserPermissionKey(id);
-    return this.redis.smembers(key);
-  }
-
-  setUserPermission(id: string, permissions: string[]) {
-    const key = this.generateUserPermissionKey(id);
-    this.redis.sadd(key, permissions);
-    this.redis.expire(key, getBaseConfig(this.configService).jwt.expiresIn);
-  }
-
-  delUserPermission(id: string) {
-    const key = this.generateUserPermissionKey(id);
-    this.redis.del(key);
+    return {
+      set: async (permissions: string[]) => {
+        await this.redis.sadd(key, permissions);
+        await this.redis.expire(
+          key,
+          getBaseConfig(this.configService).jwt.expiresIn,
+        );
+      },
+      get: () => {
+        return this.redis.smembers(key);
+      },
+      remove: () => {
+        return this.redis.del(key);
+      },
+    };
   }
 }

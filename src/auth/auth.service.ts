@@ -35,10 +35,7 @@ export class AuthService {
       background: '#f0f0f0',
     });
 
-    this.redisService.setCaptcha(
-      this.redisService.generateCaptchaKey(ip, userAgent),
-      captcha.text,
-    );
+    this.redisService.captcha(ip, userAgent).set(captcha.text);
 
     return {
       captcha: `data:image/svg+xml;base64,${Buffer.from(captcha.data).toString('base64')}`,
@@ -46,11 +43,11 @@ export class AuthService {
   }
 
   async validateCaptcha(ip: string, userAgent: string, captcha: string) {
-    const key = this.redisService.generateCaptchaKey(ip, userAgent);
-    const value = await this.redisService.getCaptcha(key);
+    const handler = this.redisService.captcha(ip, userAgent);
+    const value = await handler.get();
 
     if (value && value.toLowerCase() === captcha.toLowerCase()) {
-      this.redisService.delCaptcha(key);
+      await handler.remove();
       return true;
     }
 
@@ -105,18 +102,19 @@ export class AuthService {
   }
 
   async login(data: LoginDto, ip: string, userAgent: string) {
-    const signInErrorsKey = this.redisService.generateSignInErrorsKey(
+    const loginAttemptsHandler = this.redisService.trackLoginAttempts(
       ip,
       userAgent,
     );
-    const signInErrors =
-      await this.redisService.getSignInErrors(signInErrorsKey);
-    if (signInErrors >= getBaseConfig(this.configService).signInErrorLimit) {
-      const expiresIn =
-        getBaseConfig(this.configService).signInErrorExpireIn / 60;
+    const loginAttempts = await loginAttemptsHandler.get();
+    const { signInErrorLimit, signInErrorExpireIn } = getBaseConfig(
+      this.configService,
+    );
 
+    if (loginAttempts >= signInErrorLimit) {
+      const minutes = Math.ceil(signInErrorExpireIn / 60);
       throw new BadRequestException(
-        `验证码/用户名/密码错误次数过多，请${expiresIn}分钟后再试`,
+        `验证码/用户名/密码错误次数过多，请${minutes}分钟后再试`,
       );
     }
 
@@ -126,32 +124,31 @@ export class AuthService {
       data.captcha,
     );
     if (!isCaptchaValid) {
-      this.redisService.setSignInErrors(signInErrorsKey, signInErrors + 1);
+      await loginAttemptsHandler.increment();
       throw new BadRequestException('验证码错误');
     }
 
     const payload = await this.validateUser(data.userName, data.password);
     if (!payload) {
-      this.redisService.setSignInErrors(signInErrorsKey, signInErrors + 1);
+      await loginAttemptsHandler.increment();
       throw new BadRequestException('用户名或密码错误，或账号已被禁用');
     }
 
     const tokenObj = this.generateTokens(payload);
-    this.redisService.setSSO(
-      this.redisService.generateSSOKey(payload.userId),
-      tokenObj.accessToken,
-    );
+    this.redisService.sso(payload.userId).set(tokenObj.accessToken);
 
     return tokenObj;
   }
 
   async logout(accessToken: string, userId: string) {
-    this.redisService.setBlackList(accessToken);
-    this.redisService.delSSO(this.redisService.generateSSOKey(userId));
+    await this.redisService.blackList().set(accessToken);
+    await this.redisService.sso(userId).remove();
   }
 
   async refreshToken(accessToken: string, refreshToken: string) {
-    const isBlackListed = await this.redisService.isBlackListed(accessToken);
+    const isBlackListed = await this.redisService
+      .blackList()
+      .isBlackListed(accessToken);
     if (isBlackListed) {
       throw new UnauthorizedException('请重新登录');
     }
@@ -165,9 +162,7 @@ export class AuthService {
       throw new UnauthorizedException('请重新登录');
     }
 
-    const validToken = await this.redisService.getSSO(
-      this.redisService.generateSSOKey(payload.userId),
-    );
+    const validToken = await this.redisService.sso(payload.userId).get();
     if (accessToken !== validToken) {
       throw new UnauthorizedException('该账号已在其他地方登录，请重新登录');
     }
@@ -182,10 +177,7 @@ export class AuthService {
     }
 
     const tokenObj = this.generateTokens(payload);
-    this.redisService.setSSO(
-      this.redisService.generateSSOKey(payload.userId),
-      tokenObj.accessToken,
-    );
+    this.redisService.sso(payload.userId).set(tokenObj.accessToken);
     return tokenObj;
   }
 
@@ -217,7 +209,7 @@ export class AuthService {
         .map((item) => item.permission);
     }
 
-    this.redisService.setUserPermission(id, userAuthInfo.permissions);
+    this.redisService.userPermissions(id).set(userAuthInfo.permissions);
 
     const menus = userInfo
       .filter((item) => item.type && item.type !== 'BUTTON')

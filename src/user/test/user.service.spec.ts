@@ -35,65 +35,92 @@ describe('UserService', () => {
   });
 
   describe('removeUserToken', () => {
-    it('should remove user token and add to blacklist if token exists', async () => {
-      // Arrange
-      const userId = 'testUserId';
-      const ssoKey = 'sso_key';
-      const token = 'test_token';
-
+    beforeEach(() => {
+      // Mock Redis service
       (userService as any).redisService = {
-        generateSSOKey: jest.fn().mockReturnValue(ssoKey),
-        getSSO: jest.fn().mockResolvedValue(token),
-        setBlackList: jest.fn(),
-        delSSO: jest.fn(),
+        sso: jest.fn().mockReturnValue({
+          get: jest.fn(),
+          remove: jest.fn(),
+        }),
+        blackList: jest.fn().mockReturnValue({
+          set: jest.fn(),
+        }),
       };
-
-      // Act
-      await (userService as any).removeUserToken(userId);
-
-      // Assert
-      expect(
-        (userService as any).redisService.generateSSOKey,
-      ).toHaveBeenCalledWith(userId);
-      expect((userService as any).redisService.getSSO).toHaveBeenCalledWith(
-        ssoKey,
-      );
-      expect(
-        (userService as any).redisService.setBlackList,
-      ).toHaveBeenCalledWith(token);
-      expect((userService as any).redisService.delSSO).toHaveBeenCalledWith(
-        ssoKey,
-      );
     });
 
-    it('should only delete SSO key if no token exists', async () => {
+    it('should remove token from SSO and add to blacklist if token exists', async () => {
       // Arrange
       const userId = 'testUserId';
-      const ssoKey = 'sso_key';
-
-      (userService as any).redisService = {
-        generateSSOKey: jest.fn().mockReturnValue(ssoKey),
-        getSSO: jest.fn().mockResolvedValue(null),
-        setBlackList: jest.fn(),
-        delSSO: jest.fn(),
+      const token = 'testToken';
+      const ssoHandler = {
+        get: jest.fn().mockResolvedValue(token),
+        remove: jest.fn(),
       };
+      const blackListHandler = {
+        set: jest.fn(),
+      };
+
+      (userService as any).redisService.sso.mockReturnValue(ssoHandler);
+      (userService as any).redisService.blackList.mockReturnValue(
+        blackListHandler,
+      );
 
       // Act
       await (userService as any).removeUserToken(userId);
 
       // Assert
-      expect(
-        (userService as any).redisService.generateSSOKey,
-      ).toHaveBeenCalledWith(userId);
-      expect((userService as any).redisService.getSSO).toHaveBeenCalledWith(
-        ssoKey,
+      expect((userService as any).redisService.sso).toHaveBeenCalledWith(
+        userId,
       );
-      expect(
-        (userService as any).redisService.setBlackList,
-      ).not.toHaveBeenCalled();
-      expect((userService as any).redisService.delSSO).toHaveBeenCalledWith(
-        ssoKey,
+      expect(ssoHandler.get).toHaveBeenCalled();
+      expect((userService as any).redisService.blackList).toHaveBeenCalled();
+      expect(blackListHandler.set).toHaveBeenCalledWith(token);
+      expect(ssoHandler.remove).toHaveBeenCalled();
+    });
+
+    it('should not add to blacklist if token does not exist', async () => {
+      // Arrange
+      const userId = 'testUserId';
+      const ssoHandler = {
+        get: jest.fn().mockResolvedValue(null),
+        remove: jest.fn(),
+      };
+      const blackListHandler = {
+        set: jest.fn(),
+      };
+
+      (userService as any).redisService.sso.mockReturnValue(ssoHandler);
+      (userService as any).redisService.blackList.mockReturnValue(
+        blackListHandler,
       );
+
+      // Act
+      await (userService as any).removeUserToken(userId);
+
+      // Assert
+      expect(ssoHandler.get).toHaveBeenCalled();
+      expect(blackListHandler.set).not.toHaveBeenCalled();
+      expect(ssoHandler.remove).toHaveBeenCalled();
+    });
+
+    it('should always remove the SSO entry regardless of token existence', async () => {
+      // Arrange
+      const userId = 'testUserId';
+      const ssoHandler = {
+        get: jest.fn().mockResolvedValue(null),
+        remove: jest.fn(),
+      };
+
+      (userService as any).redisService.sso.mockReturnValue(ssoHandler);
+      (userService as any).redisService.blackList.mockReturnValue({
+        set: jest.fn(),
+      });
+
+      // Act
+      await (userService as any).removeUserToken(userId);
+
+      // Assert
+      expect(ssoHandler.remove).toHaveBeenCalled();
     });
   });
 
@@ -760,13 +787,18 @@ describe('UserService', () => {
 
   describe('update', () => {
     beforeEach(() => {
-      // Mock redisService methods
+      // Mock Redis service
       (userService as any).redisService = {
-        delUserPermission: jest.fn(),
-        delSSO: jest.fn(),
-        generateSSOKey: jest.fn(),
-        getSSO: jest.fn(),
-        setBlackList: jest.fn(),
+        userPermissions: jest.fn().mockReturnValue({
+          remove: jest.fn(),
+        }),
+        sso: jest.fn().mockReturnValue({
+          get: jest.fn(),
+          remove: jest.fn(),
+        }),
+        blackList: jest.fn().mockReturnValue({
+          set: jest.fn(),
+        }),
       };
 
       // Mock removeUserToken method
@@ -779,10 +811,9 @@ describe('UserService', () => {
       // Arrange
       const mockFindUnique = prismaService.user.findUnique as jest.Mock;
       mockFindUnique.mockResolvedValue(null);
-
       const updateUserDto = {
         disabled: false,
-        nickName: 'New Name',
+        nickName: 'Updated Name',
         roles: [1, 2],
       };
 
@@ -809,7 +840,6 @@ describe('UserService', () => {
       const updateUserDto = {
         disabled: true,
         nickName: 'Admin',
-        roles: [1],
       };
 
       // Act & Assert
@@ -829,7 +859,6 @@ describe('UserService', () => {
       });
 
       const updateUserDto = {
-        disabled: false,
         nickName: 'Admin',
         roles: [1, 2],
       };
@@ -840,7 +869,7 @@ describe('UserService', () => {
       ).rejects.toThrow('不能修改超级管理员角色');
     });
 
-    it('should update user profile without modifying roles', async () => {
+    it('should update user profile without changing roles', async () => {
       // Arrange
       const mockFindUnique = prismaService.user.findUnique as jest.Mock;
       mockFindUnique.mockResolvedValue({ userName: 'regularUser' });
@@ -869,11 +898,12 @@ describe('UserService', () => {
         },
       });
       expect(
-        (userService as any).redisService.delUserPermission,
+        (userService as any).redisService.userPermissions,
       ).not.toHaveBeenCalled();
+      expect((userService as any).removeUserToken).not.toHaveBeenCalled();
     });
 
-    it('should update user roles when roles are provided', async () => {
+    it('should update user roles and clear redis cache', async () => {
       // Arrange
       const mockFindUnique = prismaService.user.findUnique as jest.Mock;
       mockFindUnique.mockResolvedValue({ userName: 'regularUser' });
@@ -883,8 +913,8 @@ describe('UserService', () => {
 
       const updateUserDto = {
         disabled: false,
-        nickName: 'Regular User',
-        roles: [1, 3],
+        nickName: 'Updated Name',
+        roles: [1, 2],
       };
 
       // Act
@@ -897,23 +927,26 @@ describe('UserService', () => {
           disabled: false,
           profile: {
             update: {
-              nickName: 'Regular User',
+              nickName: 'Updated Name',
             },
           },
           roleInUser: {
             deleteMany: {},
             createMany: {
-              data: [{ roleId: 1 }, { roleId: 3 }],
+              data: [{ roleId: 1 }, { roleId: 2 }],
             },
           },
         },
       });
       expect(
-        (userService as any).redisService.delUserPermission,
+        (userService as any).redisService.userPermissions,
       ).toHaveBeenCalledWith('userId');
+      expect(
+        (userService as any).redisService.userPermissions().remove,
+      ).toHaveBeenCalled();
     });
 
-    it('should delete all roles when empty roles array is provided', async () => {
+    it('should remove all roles when empty roles array is provided', async () => {
       // Arrange
       const mockFindUnique = prismaService.user.findUnique as jest.Mock;
       mockFindUnique.mockResolvedValue({ userName: 'regularUser' });
@@ -923,7 +956,7 @@ describe('UserService', () => {
 
       const updateUserDto = {
         disabled: false,
-        nickName: 'Regular User',
+        nickName: 'Updated Name',
         roles: [],
       };
 
@@ -937,7 +970,7 @@ describe('UserService', () => {
           disabled: false,
           profile: {
             update: {
-              nickName: 'Regular User',
+              nickName: 'Updated Name',
             },
           },
           roleInUser: {
@@ -946,11 +979,11 @@ describe('UserService', () => {
         },
       });
       expect(
-        (userService as any).redisService.delUserPermission,
+        (userService as any).redisService.userPermissions,
       ).toHaveBeenCalledWith('userId');
     });
 
-    it('should remove user token when disabling user', async () => {
+    it('should handle disabled user and clear redis cache', async () => {
       // Arrange
       const mockFindUnique = prismaService.user.findUnique as jest.Mock;
       mockFindUnique.mockResolvedValue({ userName: 'regularUser' });
@@ -960,7 +993,7 @@ describe('UserService', () => {
 
       const updateUserDto = {
         disabled: true,
-        nickName: 'Regular User',
+        nickName: 'Updated Name',
       };
 
       // Act
@@ -973,13 +1006,13 @@ describe('UserService', () => {
           disabled: true,
           profile: {
             update: {
-              nickName: 'Regular User',
+              nickName: 'Updated Name',
             },
           },
         },
       });
       expect(
-        (userService as any).redisService.delUserPermission,
+        (userService as any).redisService.userPermissions,
       ).toHaveBeenCalledWith('userId');
       expect((userService as any).removeUserToken).toHaveBeenCalledWith(
         'userId',
@@ -989,13 +1022,18 @@ describe('UserService', () => {
 
   describe('remove', () => {
     beforeEach(() => {
-      // Mock redisService methods
+      // Mock Redis service
       (userService as any).redisService = {
-        delUserPermission: jest.fn(),
-        delSSO: jest.fn(),
-        generateSSOKey: jest.fn(),
-        getSSO: jest.fn(),
-        setBlackList: jest.fn(),
+        userPermissions: jest.fn().mockReturnValue({
+          remove: jest.fn(),
+        }),
+        sso: jest.fn().mockReturnValue({
+          get: jest.fn(),
+          remove: jest.fn(),
+        }),
+        blackList: jest.fn().mockReturnValue({
+          set: jest.fn(),
+        }),
       };
 
       // Mock removeUserToken method
@@ -1035,7 +1073,7 @@ describe('UserService', () => {
       );
     });
 
-    it('should mark user as deleted for regular user', async () => {
+    it('should soft delete user and clean up Redis data', async () => {
       // Arrange
       const mockFindUnique = prismaService.user.findUnique as jest.Mock;
       mockFindUnique.mockResolvedValue({ userName: 'regularUser' });
@@ -1052,28 +1090,11 @@ describe('UserService', () => {
         data: { deleted: true },
       });
       expect(
-        (userService as any).redisService.delUserPermission,
+        (userService as any).redisService.userPermissions,
       ).toHaveBeenCalledWith('userId');
-      expect((userService as any).removeUserToken).toHaveBeenCalledWith(
-        'userId',
-      );
-    });
-
-    it('should clean up redis cache when removing user', async () => {
-      // Arrange
-      const mockFindUnique = prismaService.user.findUnique as jest.Mock;
-      mockFindUnique.mockResolvedValue({ userName: 'regularUser' });
-
-      const mockUpdate = prismaService.user.update as jest.Mock;
-      mockUpdate.mockResolvedValue({});
-
-      // Act
-      await userService.remove('userId');
-
-      // Assert
       expect(
-        (userService as any).redisService.delUserPermission,
-      ).toHaveBeenCalledWith('userId');
+        (userService as any).redisService.userPermissions().remove,
+      ).toHaveBeenCalled();
       expect((userService as any).removeUserToken).toHaveBeenCalledWith(
         'userId',
       );

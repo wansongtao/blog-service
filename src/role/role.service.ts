@@ -182,7 +182,7 @@ export class RoleService {
         });
 
         userIds.forEach((userId) => {
-          this.redisService.delUserPermission(userId);
+          this.redisService.userPermissions(userId).remove();
         });
       }
     }

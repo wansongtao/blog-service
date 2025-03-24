@@ -3,7 +3,6 @@ import { RedisService } from '../redis.service';
 import Redis from 'ioredis';
 import { createHash } from 'crypto';
 import { getBaseConfig } from 'src/common/config';
-import { getSeconds } from 'src/common/utils';
 
 // 模拟外部依赖
 jest.mock('src/common/config');
@@ -12,7 +11,6 @@ describe('RedisService Unit Test', () => {
   let redisService: RedisService;
   let redis: jest.Mocked<Redis>;
 
-  const mockUserName = 'testUser';
   const mockIp = '127.0.0.1';
   const mockUserAgent = 'test-agent';
   const mockValue = 'test-value';
@@ -38,220 +36,264 @@ describe('RedisService Unit Test', () => {
   });
 
   describe('Captcha Operations', () => {
-    describe('generateCaptchaKey', () => {
-      it('should generate correct captcha key', () => {
-        const expectedHash = createHash('sha256')
-          .update(`${mockIp}:${mockUserAgent}`)
-          .digest('hex');
+    let captchaKey: string;
 
-        const result = redisService.generateCaptchaKey(mockIp, mockUserAgent);
-
-        expect(result).toBe(`captcha: ${expectedHash}`);
-      });
+    beforeEach(() => {
+      const expectedHash = createHash('sha256')
+        .update(`${mockIp}:${mockUserAgent}`)
+        .digest('hex');
+      captchaKey = `captcha: ${expectedHash}`;
     });
 
-    describe('setCaptcha', () => {
-      it('should set captcha with default expiration', async () => {
-        const mockKey = 'test-key';
+    it('should return an object with set, get, and remove methods', () => {
+      const captcha = redisService.captcha(mockIp, mockUserAgent);
+
+      expect(captcha).toHaveProperty('set');
+      expect(captcha).toHaveProperty('get');
+      expect(captcha).toHaveProperty('remove');
+      expect(typeof captcha.set).toBe('function');
+      expect(typeof captcha.get).toBe('function');
+      expect(typeof captcha.remove).toBe('function');
+    });
+
+    describe('set', () => {
+      it('should set captcha value with correct expiration', async () => {
         redis.set.mockResolvedValue('OK');
 
-        await redisService.setCaptcha(mockKey, mockValue);
+        const captcha = redisService.captcha(mockIp, mockUserAgent);
+        await captcha.set(mockValue);
 
         expect(redis.set).toHaveBeenCalledWith(
-          mockKey,
+          captchaKey,
           mockValue,
           'EX',
           mockBaseConfig.captchaExpireIn,
         );
       });
-
-      it('should set captcha with custom expiration', async () => {
-        const mockKey = 'test-key';
-        const customExpiration = 600;
-        redis.set.mockResolvedValue('OK');
-
-        await redisService.setCaptcha(mockKey, mockValue, customExpiration);
-
-        expect(redis.set).toHaveBeenCalledWith(
-          mockKey,
-          mockValue,
-          'EX',
-          customExpiration,
-        );
-      });
     });
 
-    describe('getCaptcha', () => {
+    describe('get', () => {
       it('should get captcha value', async () => {
-        const mockKey = 'test-key';
         redis.get.mockResolvedValue(mockValue);
 
-        const result = await redisService.getCaptcha(mockKey);
+        const captcha = redisService.captcha(mockIp, mockUserAgent);
+        const result = await captcha.get();
 
         expect(result).toBe(mockValue);
-        expect(redis.get).toHaveBeenCalledWith(mockKey);
+        expect(redis.get).toHaveBeenCalledWith(captchaKey);
       });
     });
 
-    describe('delCaptcha', () => {
-      it('should delete captcha', async () => {
-        const mockKey = 'test-key';
+    describe('remove', () => {
+      it('should remove captcha', async () => {
         redis.del.mockResolvedValue(1);
 
-        await redisService.delCaptcha(mockKey);
+        const captcha = redisService.captcha(mockIp, mockUserAgent);
+        await captcha.remove();
 
-        expect(redis.del).toHaveBeenCalledWith(mockKey);
+        expect(redis.del).toHaveBeenCalledWith(captchaKey);
       });
     });
   });
 
   describe('SSO Operations', () => {
-    describe('generateSSOKey', () => {
-      it('should generate correct SSO key', () => {
-        const result = redisService.generateSSOKey(mockUserName);
-        expect(result).toBe(`sso: ${mockUserName}`);
+    const mockUserId = 'user123';
+    const ssoKey = `sso: ${mockUserId}`;
+
+    it('should return an object with set, get, and remove methods', () => {
+      const sso = redisService.sso(mockUserId);
+
+      expect(sso).toHaveProperty('set');
+      expect(sso).toHaveProperty('get');
+      expect(sso).toHaveProperty('remove');
+      expect(typeof sso.set).toBe('function');
+      expect(typeof sso.get).toBe('function');
+      expect(typeof sso.remove).toBe('function');
+    });
+
+    describe('set', () => {
+      it('should set SSO token with correct expiration', async () => {
+        redis.set.mockResolvedValue('OK');
+        const sso = redisService.sso(mockUserId);
+        await sso.set(mockValue);
+
+        expect(redis.set).toHaveBeenCalledWith(ssoKey, mockValue, 'EX', 604800);
       });
     });
 
-    describe('setSSO', () => {
-      it('should set SSO with default expiration', async () => {
-        const mockKey = 'test-key';
-        redis.set.mockResolvedValue('OK');
-
-        await redisService.setSSO(mockKey, mockValue);
-
-        expect(redis.set).toHaveBeenCalledWith(
-          mockKey,
-          mockValue,
-          'EX',
-          getSeconds(parseInt(mockBaseConfig.jwt.refreshTokenIn), 'd'),
-        );
-      });
-
-      it('should set SSO with custom expiration', async () => {
-        const mockKey = 'test-key';
-        const customExpiration = 7200;
-        redis.set.mockResolvedValue('OK');
-
-        await redisService.setSSO(mockKey, mockValue, customExpiration);
-
-        expect(redis.set).toHaveBeenCalledWith(
-          mockKey,
-          mockValue,
-          'EX',
-          customExpiration,
-        );
-      });
-    });
-
-    describe('getSSO', () => {
-      it('should get SSO value', async () => {
-        const mockKey = 'test-key';
+    describe('get', () => {
+      it('should get SSO token', async () => {
         redis.get.mockResolvedValue(mockValue);
 
-        const result = await redisService.getSSO(mockKey);
+        const sso = redisService.sso(mockUserId);
+        const result = await sso.get();
 
         expect(result).toBe(mockValue);
-        expect(redis.get).toHaveBeenCalledWith(mockKey);
+        expect(redis.get).toHaveBeenCalledWith(ssoKey);
       });
     });
 
-    describe('delSSO', () => {
-      it('should delete SSO', async () => {
-        const mockKey = 'test-key';
+    describe('remove', () => {
+      it('should remove SSO token', async () => {
         redis.del.mockResolvedValue(1);
 
-        await redisService.delSSO(mockKey);
+        const sso = redisService.sso(mockUserId);
+        await sso.remove();
 
-        expect(redis.del).toHaveBeenCalledWith(mockKey);
+        expect(redis.del).toHaveBeenCalledWith(ssoKey);
       });
     });
   });
 
-  describe('SignIn Errors Operations', () => {
-    describe('generateSignInErrorsKey', () => {
-      it('should generate correct sign-in errors key', () => {
-        const expectedHash = createHash('sha256')
-          .update(`${mockIp}:${mockUserAgent}`)
-          .digest('hex');
+  describe('TrackLoginAttempts Operations', () => {
+    let attemptsKey: string;
 
-        const result = redisService.generateSignInErrorsKey(
+    beforeEach(() => {
+      const expectedHash = createHash('sha256')
+        .update(`${mockIp}:${mockUserAgent}`)
+        .digest('hex');
+      attemptsKey = `login-attempts: ${expectedHash}`;
+    });
+
+    it('should return an object with increment, get, reset, and set methods', () => {
+      const loginAttempts = redisService.trackLoginAttempts(
+        mockIp,
+        mockUserAgent,
+      );
+
+      expect(loginAttempts).toHaveProperty('increment');
+      expect(loginAttempts).toHaveProperty('get');
+      expect(loginAttempts).toHaveProperty('reset');
+      expect(loginAttempts).toHaveProperty('set');
+      expect(typeof loginAttempts.increment).toBe('function');
+      expect(typeof loginAttempts.get).toBe('function');
+      expect(typeof loginAttempts.reset).toBe('function');
+      expect(typeof loginAttempts.set).toBe('function');
+    });
+
+    describe('get', () => {
+      it('should get login attempts count and return 0 if not exists', async () => {
+        redis.get.mockResolvedValue(null);
+
+        const loginAttempts = redisService.trackLoginAttempts(
           mockIp,
           mockUserAgent,
         );
-        expect(result).toBe(`sign-in:errors: ${expectedHash}`);
+        const result = await loginAttempts.get();
+
+        expect(result).toBe(0);
+        expect(redis.get).toHaveBeenCalledWith(attemptsKey);
+      });
+
+      it('should get login attempts count and convert string to number', async () => {
+        redis.get.mockResolvedValue('3');
+
+        const loginAttempts = redisService.trackLoginAttempts(
+          mockIp,
+          mockUserAgent,
+        );
+        const result = await loginAttempts.get();
+
+        expect(result).toBe(3);
+        expect(redis.get).toHaveBeenCalledWith(attemptsKey);
       });
     });
 
-    describe('setSignInErrors', () => {
-      it('should set sign-in errors count', async () => {
-        const mockKey = 'test-key';
-        const mockErrorCount = 3;
+    describe('set', () => {
+      it('should set login attempts count with correct expiration', async () => {
         redis.set.mockResolvedValue('OK');
+        const attemptsCount = 5;
 
-        await redisService.setSignInErrors(mockKey, mockErrorCount);
+        const loginAttempts = redisService.trackLoginAttempts(
+          mockIp,
+          mockUserAgent,
+        );
+        await loginAttempts.set(attemptsCount);
 
         expect(redis.set).toHaveBeenCalledWith(
-          mockKey,
-          mockErrorCount,
+          attemptsKey,
+          attemptsCount,
           'EX',
           mockBaseConfig.signInErrorExpireIn,
         );
       });
     });
 
-    describe('getSignInErrors', () => {
-      it('should get sign-in errors count', async () => {
-        const mockKey = 'test-key';
-        const mockErrorCount = '3';
-        redis.get.mockResolvedValue(mockErrorCount);
+    describe('increment', () => {
+      it('should increment login attempts count', async () => {
+        redis.get.mockResolvedValue('2');
+        redis.set.mockResolvedValue('OK');
 
-        const result = await redisService.getSignInErrors(mockKey);
+        const loginAttempts = redisService.trackLoginAttempts(
+          mockIp,
+          mockUserAgent,
+        );
+        await loginAttempts.increment();
 
-        expect(result).toBe(3);
-        expect(redis.get).toHaveBeenCalledWith(mockKey);
+        expect(redis.get).toHaveBeenCalledWith(attemptsKey);
+        expect(redis.set).toHaveBeenCalledWith(
+          attemptsKey,
+          3,
+          'EX',
+          mockBaseConfig.signInErrorExpireIn,
+        );
       });
 
-      it('should return 0 when no errors found', async () => {
-        const mockKey = 'test-key';
+      it('should start from 1 if no previous attempts', async () => {
         redis.get.mockResolvedValue(null);
+        redis.set.mockResolvedValue('OK');
 
-        const result = await redisService.getSignInErrors(mockKey);
+        const loginAttempts = redisService.trackLoginAttempts(
+          mockIp,
+          mockUserAgent,
+        );
+        await loginAttempts.increment();
 
-        expect(result).toBe(0);
-        expect(redis.get).toHaveBeenCalledWith(mockKey);
+        expect(redis.set).toHaveBeenCalledWith(
+          attemptsKey,
+          1,
+          'EX',
+          mockBaseConfig.signInErrorExpireIn,
+        );
       });
     });
 
-    describe('delSignInErrors', () => {
-      it('should delete sign-in errors', async () => {
-        const mockKey = 'test-key';
+    describe('reset', () => {
+      it('should reset login attempts counter', async () => {
         redis.del.mockResolvedValue(1);
 
-        await redisService.delSignInErrors(mockKey);
+        const loginAttempts = redisService.trackLoginAttempts(
+          mockIp,
+          mockUserAgent,
+        );
+        await loginAttempts.reset();
 
-        expect(redis.del).toHaveBeenCalledWith(mockKey);
+        expect(redis.del).toHaveBeenCalledWith(attemptsKey);
       });
     });
   });
 
-  describe('Blacklist Operations', () => {
-    describe('generateBlackListKey', () => {
-      it('should generate correct blacklist key', () => {
-        const result = redisService.generateBlackListKey(mockValue);
-        expect(result).toBe(`blacklist: ${mockValue}`);
-      });
+  describe('BlackList Operations', () => {
+    const mockToken = 'auth.token.123456';
+
+    it('should return an object with set and isBlackListed methods', () => {
+      const blackList = redisService.blackList();
+
+      expect(blackList).toHaveProperty('set');
+      expect(blackList).toHaveProperty('isBlackListed');
+      expect(typeof blackList.set).toBe('function');
+      expect(typeof blackList.isBlackListed).toBe('function');
     });
 
-    describe('setBlackList', () => {
-      it('should set token to blacklist', async () => {
-        const mockKey = 'test-key';
+    describe('set', () => {
+      it('should add token to blacklist with correct expiration', async () => {
         redis.set.mockResolvedValue('OK');
 
-        redisService.setBlackList(mockKey);
+        const blackList = redisService.blackList();
+        await blackList.set(mockToken);
 
         expect(redis.set).toHaveBeenCalledWith(
-          `blacklist: ${mockKey}`,
+          mockToken,
           'logout',
           'EX',
           mockBaseConfig.jwt.expiresIn,
@@ -260,74 +302,83 @@ describe('RedisService Unit Test', () => {
     });
 
     describe('isBlackListed', () => {
-      it('should return true if token is blacklisted', async () => {
-        const mockKey = 'test-key';
+      it('should return true if token exists in blacklist', async () => {
         redis.exists.mockResolvedValue(1);
 
-        const result = await redisService.isBlackListed(mockKey);
+        const blackList = redisService.blackList();
+        const result = await blackList.isBlackListed(mockToken);
 
         expect(result).toBe(true);
-        expect(redis.exists).toHaveBeenCalledWith(`blacklist: ${mockKey}`);
+        expect(redis.exists).toHaveBeenCalledWith(mockToken);
       });
 
-      it('should return false if token is not blacklisted', async () => {
-        const mockKey = 'test-key';
+      it('should return false if token does not exist in blacklist', async () => {
         redis.exists.mockResolvedValue(0);
 
-        const result = await redisService.isBlackListed(mockKey);
+        const blackList = redisService.blackList();
+        const result = await blackList.isBlackListed(mockToken);
 
         expect(result).toBe(false);
-        expect(redis.exists).toHaveBeenCalledWith(`blacklist: ${mockKey}`);
+        expect(redis.exists).toHaveBeenCalledWith(mockToken);
       });
     });
   });
 
-  describe('UserPermission Operations', () => {
-    describe('generateUserPermissionKey', () => {
-      it('should generate user-permission key', () => {
-        const result = redisService.generateUserPermissionKey(mockValue);
-        expect(result).toBe(`permission: ${mockValue}`);
-      });
+  describe('UserPermissions Operations', () => {
+    const mockUserId = 'user123';
+    const permissionsKey = `permissions: ${mockUserId}`;
+    const mockPermissions = ['read', 'write', 'delete'];
+
+    it('should return an object with set, get, and remove methods', () => {
+      const userPermissions = redisService.userPermissions(mockUserId);
+
+      expect(userPermissions).toHaveProperty('set');
+      expect(userPermissions).toHaveProperty('get');
+      expect(userPermissions).toHaveProperty('remove');
+      expect(typeof userPermissions.set).toBe('function');
+      expect(typeof userPermissions.get).toBe('function');
+      expect(typeof userPermissions.remove).toBe('function');
     });
 
-    describe('getUserPermission', () => {
-      it('should get user-permission list', async () => {
-        const mockKey = 'test-key';
-        const mockList = ['3'];
-        redis.smembers.mockResolvedValue(mockList);
+    describe('set', () => {
+      it('should set user permissions with correct expiration', async () => {
+        redis.sadd.mockResolvedValue(mockPermissions.length);
+        redis.expire.mockResolvedValue(1);
 
-        const result = await redisService.getUserPermission(mockKey);
-        expect(result).toBe(mockList);
-        expect(redis.smembers).toHaveBeenCalledWith(`permission: ${mockKey}`);
-      });
-    });
-
-    describe('setUserPermission', () => {
-      it('should set user-permission list', async () => {
-        const mockKey = 'test-key';
-        const mockPermissions = ['1'];
-        redis.sadd.mockResolvedValue(1);
-
-        redisService.setUserPermission(mockKey, mockPermissions);
+        const userPermissions = redisService.userPermissions(mockUserId);
+        await userPermissions.set(mockPermissions);
 
         expect(redis.sadd).toHaveBeenCalledWith(
-          `permission: ${mockKey}`,
+          permissionsKey,
           mockPermissions,
         );
         expect(redis.expire).toHaveBeenCalledWith(
-          `permission: ${mockKey}`,
+          permissionsKey,
           mockBaseConfig.jwt.expiresIn,
         );
       });
     });
 
-    describe('delUserPermission', () => {
-      it('should delete user-permission', async () => {
-        const mockKey = 'test-key';
+    describe('get', () => {
+      it('should get user permissions', async () => {
+        redis.smembers.mockResolvedValue(mockPermissions);
+
+        const userPermissions = redisService.userPermissions(mockUserId);
+        const result = await userPermissions.get();
+
+        expect(result).toEqual(mockPermissions);
+        expect(redis.smembers).toHaveBeenCalledWith(permissionsKey);
+      });
+    });
+
+    describe('remove', () => {
+      it('should remove user permissions', async () => {
         redis.del.mockResolvedValue(1);
 
-        redisService.delUserPermission(mockKey);
-        expect(redis.del).toHaveBeenCalledWith('permission: test-key');
+        const userPermissions = redisService.userPermissions(mockUserId);
+        await userPermissions.remove();
+
+        expect(redis.del).toHaveBeenCalledWith(permissionsKey);
       });
     });
   });

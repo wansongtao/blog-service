@@ -34,12 +34,12 @@ export class UserService {
   }
 
   private async removeUserToken(id: string) {
-    const key = this.redisService.generateSSOKey(id);
-    const token = await this.redisService.getSSO(key);
+    const ssoHandler = this.redisService.sso(id);
+    const token = await ssoHandler.get();
     if (token) {
-      this.redisService.setBlackList(token);
+      this.redisService.blackList().set(token);
     }
-    this.redisService.delSSO(key);
+    ssoHandler.remove();
   }
 
   async findUser(userName: string): Promise<{
@@ -340,12 +340,12 @@ export class UserService {
       },
     };
     if (updateUserDto.disabled) {
-      this.redisService.delUserPermission(id);
+      this.redisService.userPermissions(id).remove();
       this.removeUserToken(id);
     }
 
     if (updateUserDto.roles || updateUserDto.roles === null) {
-      this.redisService.delUserPermission(id);
+      this.redisService.userPermissions(id).remove();
       data.roleInUser = {
         deleteMany: {},
       };
@@ -380,7 +380,7 @@ export class UserService {
       throw new BadRequestException('不能删除超级管理员');
     }
 
-    this.redisService.delUserPermission(id);
+    this.redisService.userPermissions(id).remove();
     this.removeUserToken(id);
 
     await this.prismaService.user.update({

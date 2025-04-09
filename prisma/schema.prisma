@@ -24,6 +24,7 @@ model User {
 
   profile    Profile?
   roleInUser RoleInUser[]
+  userInArticle UserInArticle[]
 
   @@map("users")
 }
@@ -120,4 +121,46 @@ model PermissionInRole {
   
   @@id([roleId, permissionId])
   @@map("role_in_permission")
+}
+
+model Category {
+  id               Int                @id @default(autoincrement()) @db.SmallInt
+  name             String             @unique @db.VarChar(50)
+  description      String?            @db.VarChar(150)
+  hidden           Boolean            @default(false)
+  sort             Int                @default(0) @db.SmallInt
+  deleted          Boolean            @default(false)
+  createdAt        DateTime           @default(now()) @map("created_at")
+  updatedAt        DateTime           @updatedAt @map("updated_at")
+
+  article          Article[]
+
+  @@map("category")
+}
+
+model Article {
+  id               Int                @id @default(autoincrement()) @db.Integer
+  title            String             @db.VarChar(150)
+  content          String             @db.Text
+  visibility       String             @db.VarChar(50)
+  deleted          Boolean            @default(false)
+  createdAt        DateTime           @default(now()) @map("created_at")
+  updatedAt        DateTime           @updatedAt @map("updated_at")
+
+  categoryName     String             @map("category_name")
+  category         Category           @relation(fields: [categoryName], references: [name])
+  userInArticle    UserInArticle[]
+  
+  @@map("article")
+}
+
+model UserInArticle {
+  userId      String      @map("user_id")
+  user        User        @relation(fields: [userId], references: [id])
+
+  articleId   Int         @map("article_id")
+  article     Article     @relation(fields: [articleId], references: [id])
+
+  @@id([userId, articleId])
+  @@map("user_in_article")
 }

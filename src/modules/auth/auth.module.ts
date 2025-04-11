@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { RedisModule } from 'src/redis/redis.module';
-import { UserModule } from 'src/user/user.module';
+import { UserModule } from 'src/modules/user/user.module';
 import { JwtModule, type JwtModuleOptions } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { getBaseConfig } from 'src/common/config';
@@ -18,7 +18,7 @@ import { JwtStrategy } from './jwt.strategy';
     JwtModule.registerAsync({
       useFactory: (configService: ConfigService) => {
         const config = getBaseConfig(configService);
-        const staticPath = join(__dirname, '../../../');
+        const staticPath = join(__dirname, '../../../../');
         const privateKey = readFileSync(
           join(staticPath, config.jwt.privateKeyPath),
         );

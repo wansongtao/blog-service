@@ -10,16 +10,16 @@ import {
 import winston from 'winston';
 import DailyRotateFile from 'winston-daily-rotate-file';
 import { join } from 'path';
-import { AuthModule } from './auth/auth.module';
+import { AuthModule } from './modules/auth/auth.module';
 import { BaseResponseInterceptor } from 'src/common/interceptor/base-response.interceptor';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
-import { UserModule } from './user/user.module';
+import { UserModule } from './modules/user/user.module';
 import { RedisModule } from './redis/redis.module';
 import { JwtAuthGuard } from './common/guard/jwt-auth.guard';
-import { PermissionModule } from './permission/permission.module';
+import { PermissionModule } from './modules/permission/permission.module';
 import { AuthorityGuard } from './common/guard/authority.guard';
-import { UploadModule } from './upload/upload.module';
-import { RoleModule } from './role/role.module';
+import { UploadModule } from './modules/upload/upload.module';
+import { RoleModule } from './modules/role/role.module';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 
 @Module({

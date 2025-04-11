@@ -9,7 +9,7 @@ import { RedisService } from 'src/redis/redis.service';
 import { ConfigService } from '@nestjs/config';
 import { getBaseConfig } from 'src/common/config';
 import { LoginDto } from './dto/auth.dto';
-import { UserService } from 'src/user/user.service';
+import { UserService } from 'src/modules/user/user.service';
 import { JwtService } from '@nestjs/jwt';
 import bcrypt from 'bcrypt';
 import { generateMenus } from 'src/common/utils';

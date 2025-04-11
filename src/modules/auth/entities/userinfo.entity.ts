@@ -1,5 +1,5 @@
 import { ApiProperty, OmitType } from '@nestjs/swagger';
-import { PermissionEntity } from 'src/permission/entities/permission.entity';
+import { PermissionEntity } from 'src/modules/permission/entities/permission.entity';
 
 class MenuEntity extends OmitType(PermissionEntity, [
   'createdAt',

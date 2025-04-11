@@ -1,12 +1,12 @@
 import { TestBed } from '@automock/jest';
 import { AuthService } from '../auth.service';
 import { RedisService } from 'src/redis/redis.service';
-import { UserService } from 'src/user/user.service';
+import { UserService } from 'src/modules/user/user.service';
 import { JwtService } from '@nestjs/jwt';
 import { create as createCaptcha } from 'svg-captcha';
 import { getBaseConfig } from 'src/common/config';
 import bcrypt from 'bcrypt';
-import { UserPermissionInfoEntity } from 'src/user/entities/user-permission-info.entity';
+import { UserPermissionInfoEntity } from 'src/modules/user/entities/user-permission-info.entity';
 
 jest.mock('svg-captcha');
 jest.mock('src/common/config');

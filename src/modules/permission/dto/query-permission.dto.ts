@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { BaseQueryDto } from '../../common/dto/base-query.dto';
+import { BaseQueryDto } from 'src/common/dto/base-query.dto';
 import { Permission } from '@prisma/client';
 import { IsBoolean, IsOptional, Matches, MaxLength } from 'class-validator';
 import { Transform } from 'class-transformer';

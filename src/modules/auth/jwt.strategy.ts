@@ -18,7 +18,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     private readonly redisService: RedisService,
     private readonly authService: AuthService,
   ) {
-    const staticPath = join(__dirname, '../../../');
+    const staticPath = join(__dirname, '../../../../');
     const publicKeyPath = getBaseConfig(configService).jwt.publicKeyPath;
     const publicKey = readFileSync(join(staticPath, publicKeyPath));
 

@@ -4,7 +4,7 @@ import { AUTHORITY_KEY } from '../decorator/authority.decorator';
 import { RedisService } from 'src/redis/redis.service';
 import { ConfigService } from '@nestjs/config';
 import { getBaseConfig } from 'src/common/config';
-import { PermissionService } from 'src/permission/permission.service';
+import { PermissionService } from 'src/modules/permission/permission.service';
 
 import { IPayload } from '../types';
 

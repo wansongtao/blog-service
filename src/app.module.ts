@@ -21,6 +21,7 @@ import { AuthorityGuard } from './common/guard/authority.guard';
 import { UploadModule } from './modules/upload/upload.module';
 import { RoleModule } from './modules/role/role.module';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { CategoryModule } from './modules/category/category.module';
 
 @Module({
   imports: [
@@ -139,6 +140,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
     PermissionModule,
     UploadModule,
     RoleModule,
+    CategoryModule,
   ],
   providers: [
     {

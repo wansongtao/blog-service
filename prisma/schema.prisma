@@ -133,6 +133,10 @@ model Category {
   createdAt        DateTime           @default(now()) @map("created_at")
   updatedAt        DateTime           @updatedAt @map("updated_at")
 
+  pid              Int?               @db.SmallInt
+  parent           Category?          @relation("ParentToChildren", fields: [pid], references: [id])
+  children         Category[]         @relation("ParentToChildren")
+
   article          Article[]
 
   @@map("category")

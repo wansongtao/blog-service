@@ -23,7 +23,7 @@ export class CreateCategoryDto {
     required: false,
   })
   @Matches(/^[\u4e00-\u9fa5a-zA-Z0-9_&+,.，。'"‘“]+$/, {
-    message: '分类名称只能包含中文、字母、数字等字符',
+    message: '分类描述只能包含中文、字母、数字等字符',
   })
   @IsOptional()
   @Length(0, 150, { message: '分类描述长度不应超过150个字符' })

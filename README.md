@@ -1,7 +1,8 @@
 English | [简体中文](/README.zh-CN.md)
 # BLOG-SERVICE
 
-**Blog Service** is a permission management system Web service that uses the **RBAC0** permission model and supports interface-level permission control.
+A backend service for a blog management system, using the **RBAC0** permission model, supporting interface-level permission control.
+This project is a personal study project, and the code may not be well structured. It is not recommended for production use.
 
 ## Features
 
@@ -9,7 +10,10 @@ English | [简体中文](/README.zh-CN.md)
 - User Management: CRUD operations, supports multiple role associations, and user disabling;
 - Role Management: CRUD operations, supports multiple permission associations, and role disabling;
 - Permission Management: CRUD operations, supports interface-level permission control;
-- Log Management: Uses winston for logging.
+- Log Management: Uses winston for logging;
+- Article Management: CRUD operations, supports markdown editor;
+- Category Management: CRUD operations, supports multi-level categories;
+- Swagger API Documentation.
 
 ## Tech Stack
 
@@ -33,10 +37,10 @@ $ git clone https://github.com/wansongtao/blog-service.git
 Create a `key` folder in the project root directory, then enter the directory and create the following keys.
 
 ```bash
-# Generate private key
+# Generate private key (macOS)
 openssl genpkey -algorithm RSA -out private_key.pem -pkeyopt rsa_keygen_bits:2048
 
-# Generate public key
+# Generate public key (macOS)
 openssl rsa -pubout -in private_key.pem -out public_key.pem
 ```
 

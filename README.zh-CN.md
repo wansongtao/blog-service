@@ -1,7 +1,8 @@
 简体中文 | [English](/README.md)
 # BLOG-SERVICE
 
-**Blog Service** 是一个权限管理系统 Web 服务，使用 **RBAC0** 权限模型，支持接口级别的权限控制。
+一个博客管理系统的后台服务，使用 **RBAC0** 权限模型，支持接口级别的权限控制。
+该项目是个人学习项目，代码可能不够规范，不建议用于生产环境。
 
 ## 功能特性
 
@@ -9,7 +10,10 @@
 - 用户管理：增删改查，支持关联多个角色，支持禁用用户；
 - 角色管理：增删改查，支持关联多个权限，支持禁用角色；
 - 权限管理：增删改查，支持接口级别的权限控制；
-- 日志管理：使用 winston 记录日志。
+- 日志管理：使用 winston 记录日志；
+- 文章管理：增删改查，支持 markdown 编辑器；
+- 分类管理：增删改查，支持多级分类；
+- Swagger 接口文档。
 
 ## 技术栈
 
@@ -33,10 +37,10 @@ $ git clone https://github.com/wansongtao/blog-service.git
 在项目根目录下，创建 `key` 文件夹，然后进入该目录创建以下密钥。
 
 ```bash
-# 生成私钥
+# 生成私钥 （macOS）
 openssl genpkey -algorithm RSA -out private_key.pem -pkeyopt rsa_keygen_bits:2048
 
-# 生成公钥
+# 生成公钥（macOS）
 openssl rsa -pubout -in private_key.pem -out public_key.pem
 ```
 

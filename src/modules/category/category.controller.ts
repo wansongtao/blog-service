@@ -6,6 +6,7 @@ import { Authority } from 'src/common/decorator/authority.decorator';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { QueryCategoryDto } from './dto/query-category.dto';
 import { CategoryListEntity } from './entities/category-list.entity';
+import { CategoryTreeEntity } from './entities/category-tree.entity';
 
 @ApiTags('category')
 @ApiBearerAuth()
@@ -26,5 +27,12 @@ export class CategoryController {
   @Get()
   findAll(@Query() params: QueryCategoryDto): Promise<CategoryListEntity> {
     return this.categoryService.findAll(params);
+  }
+
+  @ApiOperation({ summary: '获取分类树' })
+  @ApiBaseResponse(CategoryTreeEntity, 'array')
+  @Get('tree')
+  findTree(): Promise<CategoryTreeEntity[]> {
+    return this.categoryService.findTree();
   }
 }

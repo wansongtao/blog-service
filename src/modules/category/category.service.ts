@@ -122,4 +122,23 @@ export class CategoryService {
     const list = tree.slice(offset, offset + pageSize);
     return { list, total };
   }
+
+  async findTree() {
+    const categories = await this.prismaService.category.findMany({
+      where: {
+        deleted: false,
+      },
+      orderBy: {
+        sort: 'desc',
+      },
+      select: {
+        id: true,
+        pid: true,
+        name: true,
+      },
+    });
+
+    const tree = generateMenus(categories);
+    return tree;
+  }
 }

@@ -13,7 +13,9 @@ This project is a personal study project, and the code may not be well structure
 - Log Management: Uses winston for logging;
 - Article Management: CRUD operations, supports markdown editor;
 - Category Management: CRUD operations, supports multi-level categories;
-- Swagger API Documentation.
+- Unit Testing: Uses jest for unit testing;
+- Database Migration: Uses prisma for database migration;
+- Swagger API Documentation: Provides a user-friendly interface for API documentation and testing.
 
 ## Tech Stack
 

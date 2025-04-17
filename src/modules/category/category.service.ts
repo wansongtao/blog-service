@@ -141,4 +141,20 @@ export class CategoryService {
     const tree = generateMenus(categories);
     return tree;
   }
+
+  findOne(id: number) {
+    return this.prismaService.category.findUnique({
+      where: {
+        deleted: false,
+        id,
+      },
+      select: {
+        pid: true,
+        name: true,
+        sort: true,
+        hidden: true,
+        description: true,
+      },
+    });
+  }
 }

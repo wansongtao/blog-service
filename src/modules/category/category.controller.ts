@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseIntPipe,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { CategoryService } from './category.service';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ApiBaseResponse } from 'src/common/decorator/api-base-response.decorator';
@@ -7,6 +15,7 @@ import { CreateCategoryDto } from './dto/create-category.dto';
 import { QueryCategoryDto } from './dto/query-category.dto';
 import { CategoryListEntity } from './entities/category-list.entity';
 import { CategoryTreeEntity } from './entities/category-tree.entity';
+import { CategoryDetailEntity } from './entities/category-detail.entity';
 
 @ApiTags('category')
 @ApiBearerAuth()
@@ -34,5 +43,14 @@ export class CategoryController {
   @Get('tree')
   findTree(): Promise<CategoryTreeEntity[]> {
     return this.categoryService.findTree();
+  }
+
+  @ApiOperation({ summary: '获取单个分类详情' })
+  @ApiBaseResponse(CategoryDetailEntity)
+  @Get(':id')
+  findOne(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<CategoryDetailEntity> {
+    return this.categoryService.findOne(id);
   }
 }

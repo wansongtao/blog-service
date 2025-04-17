@@ -6,6 +6,7 @@ import {
   Matches,
   Max,
   IsBoolean,
+  ValidateIf,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
@@ -25,8 +26,9 @@ export class CreateCategoryDto {
   @Matches(/^[\u4e00-\u9fa5a-zA-Z0-9_&+,.，。'"‘“]+$/, {
     message: '分类描述只能包含中文、字母、数字等字符',
   })
+  @Length(1, 150, { message: '分类描述长度不应超过150个字符' })
+  @ValidateIf((o) => o.description !== '')
   @IsOptional()
-  @Length(0, 150, { message: '分类描述长度不应超过150个字符' })
   description?: string;
 
   @ApiProperty({ description: '父分类ID', example: null, required: false })

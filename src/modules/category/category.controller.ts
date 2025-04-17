@@ -4,6 +4,7 @@ import {
   Get,
   Param,
   ParseIntPipe,
+  Patch,
   Post,
   Query,
 } from '@nestjs/common';
@@ -16,6 +17,7 @@ import { QueryCategoryDto } from './dto/query-category.dto';
 import { CategoryListEntity } from './entities/category-list.entity';
 import { CategoryTreeEntity } from './entities/category-tree.entity';
 import { CategoryDetailEntity } from './entities/category-detail.entity';
+import { UpdateCategoryDto } from './dto/update-category.dto';
 
 @ApiTags('category')
 @ApiBearerAuth()
@@ -52,5 +54,16 @@ export class CategoryController {
     @Param('id', ParseIntPipe) id: number,
   ): Promise<CategoryDetailEntity> {
     return this.categoryService.findOne(id);
+  }
+
+  @ApiOperation({ summary: '更新分类' })
+  @ApiBaseResponse()
+  @Authority('system:category:edit')
+  @Patch(':id')
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() data: UpdateCategoryDto,
+  ) {
+    return this.categoryService.update(id, data);
   }
 }

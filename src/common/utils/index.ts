@@ -45,3 +45,30 @@ export const getSeconds = (time: number, unit: 's' | 'm' | 'h' | 'd') => {
       return time;
   }
 };
+
+export const deepFindItem = <T extends Record<string, any>>(
+  data: T[],
+  compare: (value: T) => boolean,
+  childrenKey = 'children',
+): T | undefined => {
+  let item: T | undefined = undefined;
+
+  for (let i = 0; i < data.length; i++) {
+    const value = data[i];
+    if (compare(value)) {
+      item = value;
+      break;
+    }
+
+    if (!value[childrenKey]) {
+      continue;
+    }
+
+    item = deepFindItem(value[childrenKey], compare, childrenKey);
+    if (item !== undefined) {
+      break;
+    }
+  }
+
+  return item;
+};

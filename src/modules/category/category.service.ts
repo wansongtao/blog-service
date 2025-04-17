@@ -2,7 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from 'nestjs-prisma';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { QueryCategoryDto } from './dto/query-category.dto';
-import { generateMenus } from 'src/common/utils';
+import { generateMenus, deepFindItem } from 'src/common/utils';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { Prisma } from '@prisma/client';
 
@@ -162,37 +162,64 @@ export class CategoryService {
 
   async update(id: number, data: UpdateCategoryDto) {
     const { name, pid } = data;
-    if (pid && pid === id) {
-      throw new BadRequestException('Parent category cannot be itself');
-    }
 
-    const whereCondition: Prisma.CategoryWhereInput = {
-      deleted: false,
-      OR: [{ id }],
-    };
     if (pid) {
-      whereCondition.OR.push({ id: pid });
-    }
-    if (name) {
-      whereCondition.OR.push({ name });
-    }
+      if (pid === id) {
+        throw new BadRequestException('Parent category cannot be itself');
+      }
 
-    const categories = await this.prismaService.category.findMany({
-      where: whereCondition,
-      select: {
-        id: true,
-        name: true,
-      },
-    });
+      const allCategory = await this.prismaService.category.findMany({
+        where: { deleted: false },
+        select: {
+          id: true,
+          pid: true,
+          name: true,
+        },
+      });
 
-    if (!categories.length || categories.every((v) => v.id !== id)) {
-      throw new BadRequestException('Category does not exist');
-    }
-    if (pid && categories.every((v) => v.id !== pid)) {
-      throw new BadRequestException('Parent category does not exist');
-    }
-    if (name && categories.some((v) => v.name === name)) {
-      throw new BadRequestException('Category name already exists');
+      if (!allCategory.length || allCategory.every((v) => v.id !== id)) {
+        throw new BadRequestException('Category does not exist');
+      }
+      if (allCategory.every((v) => v.id !== pid)) {
+        throw new BadRequestException('Parent category does not exist');
+      }
+      if (name && allCategory.some((v) => v.name === name)) {
+        throw new BadRequestException('Category name already exists');
+      }
+
+      const categoryTree = generateMenus(allCategory);
+      const own = deepFindItem(categoryTree, (v) => v.id === id);
+      if (
+        own.children?.length &&
+        deepFindItem(own.children, (v) => v.id === pid)
+      ) {
+        throw new BadRequestException(
+          'Parent category cannot be a child of itself',
+        );
+      }
+    } else {
+      const whereCondition: Prisma.CategoryWhereInput = {
+        deleted: false,
+        OR: [{ id }],
+      };
+      if (name) {
+        whereCondition.OR.push({ name });
+      }
+
+      const categories = await this.prismaService.category.findMany({
+        where: whereCondition,
+        select: {
+          id: true,
+          name: true,
+        },
+      });
+
+      if (!categories.length || categories.every((v) => v.id !== id)) {
+        throw new BadRequestException('Category does not exist');
+      }
+      if (name && categories.some((v) => v.name === name)) {
+        throw new BadRequestException('Category name already exists');
+      }
     }
 
     await this.prismaService.category.update({

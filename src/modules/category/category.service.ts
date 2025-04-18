@@ -229,4 +229,32 @@ export class CategoryService {
       data,
     });
   }
+
+  async remove(id: number) {
+    const category = await this.prismaService.category.findUnique({
+      where: {
+        id,
+        deleted: false,
+      },
+      select: {
+        id: true,
+        children: {
+          select: { id: true },
+        },
+      },
+    });
+
+    if (!category) {
+      throw new BadRequestException('Category does not exist');
+    }
+
+    if (category.children?.length) {
+      throw new BadRequestException('Parent category cannot be deleted');
+    }
+
+    await this.prismaService.category.update({
+      where: { id },
+      data: { deleted: true },
+    });
+  }
 }

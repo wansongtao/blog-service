@@ -66,4 +66,12 @@ export class CategoryController {
   ) {
     return this.categoryService.update(id, data);
   }
+
+  @ApiOperation({ summary: '删除分类' })
+  @ApiBaseResponse()
+  @Authority('system:category:del')
+  @Patch(':id/delete')
+  remove(@Param('id', ParseIntPipe) id: number) {
+    return this.categoryService.remove(id);
+  }
 }

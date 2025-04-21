@@ -143,10 +143,23 @@ model Category {
 }
 
 model Article {
-  id               Int                @id @default(autoincrement()) @db.Integer
+  id               Int                @id @default(autoincrement())
   title            String             @db.VarChar(150)
+  slug             String?            @unique @db.VarChar(200) // SEO-friendly URL
+  summary          String?            @db.VarChar(500) // Short preview text
   content          String             @db.Text
+  coverImage       String?            @map("cover_image") @db.VarChar(255)
+  
+  published        Boolean            @default(false)
+  publishedAt      DateTime?          @map("published_at")
+  featured         Boolean            @default(false)
+  
+  viewCount        Int                @default(0) @map("view_count") @db.Integer
+  likeCount        Int                @default(0) @map("like_count") @db.Integer
+  commentCount     Int                @default(0) @map("comment_count") @db.Integer
+  
   visibility       Int                @db.SmallInt
+  
   deleted          Boolean            @default(false)
   createdAt        DateTime           @default(now()) @map("created_at")
   updatedAt        DateTime           @updatedAt @map("updated_at")

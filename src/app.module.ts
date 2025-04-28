@@ -22,6 +22,7 @@ import { UploadModule } from './modules/upload/upload.module';
 import { RoleModule } from './modules/role/role.module';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { CategoryModule } from './modules/category/category.module';
+import { ArticleModule } from './modules/article/article.module';
 
 @Module({
   imports: [
@@ -141,6 +142,7 @@ import { CategoryModule } from './modules/category/category.module';
     UploadModule,
     RoleModule,
     CategoryModule,
+    ArticleModule,
   ],
   providers: [
     {

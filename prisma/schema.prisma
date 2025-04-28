@@ -24,7 +24,7 @@ model User {
 
   profile    Profile?
   roleInUser RoleInUser[]
-  userInArticle UserInArticle[]
+  article    Article[]
 
   @@map("users")
 }
@@ -145,8 +145,8 @@ model Category {
 model Article {
   id               Int                @id @default(autoincrement())
   title            String             @db.VarChar(150)
-  slug             String?            @unique @db.VarChar(200) // SEO-friendly URL
-  summary          String?            @db.VarChar(500) // Short preview text
+  theme            String?            @db.VarChar(50)
+  summary          String?            @db.VarChar(200)
   content          String             @db.Text
   coverImage       String?            @map("cover_image") @db.VarChar(255)
   
@@ -158,7 +158,7 @@ model Article {
   likeCount        Int                @default(0) @map("like_count") @db.Integer
   commentCount     Int                @default(0) @map("comment_count") @db.Integer
   
-  visibility       Int                @db.SmallInt
+  visibility       String             @db.VarChar(30)
   
   deleted          Boolean            @default(false)
   createdAt        DateTime           @default(now()) @map("created_at")
@@ -166,18 +166,9 @@ model Article {
 
   categoryName     String             @map("category_name")
   category         Category           @relation(fields: [categoryName], references: [name])
-  userInArticle    UserInArticle[]
+  
+  authorId         String             @map("author_id")
+  user             User               @relation(fields: [authorId], references: [id])
   
   @@map("article")
-}
-
-model UserInArticle {
-  userId      String      @map("user_id")
-  user        User        @relation(fields: [userId], references: [id])
-
-  articleId   Int         @map("article_id")
-  article     Article     @relation(fields: [articleId], references: [id])
-
-  @@id([userId, articleId])
-  @@map("user_in_article")
 }

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Req } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, Req } from '@nestjs/common';
 import { ArticleService } from './article.service';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ArticleVisibilityEntity } from './entities/article-visibility.entity';
@@ -6,6 +6,8 @@ import { ApiBaseResponse } from 'src/common/decorator/api-base-response.decorato
 import { Authority } from 'src/common/decorator/authority.decorator';
 import { CreateArticleDto } from './dto/create-article.dto';
 import { IPayload } from 'src/common/types';
+import { ArticleListEntity } from './entities/article-list.entity';
+import { QueryArticleDto } from './dto/query-article.dto';
 
 @ApiTags('article')
 @ApiBearerAuth()
@@ -28,5 +30,17 @@ export class ArticleController {
   @Post()
   create(@Req() req: { user: IPayload }, @Body() data: CreateArticleDto) {
     return this.articleService.create(req.user.userId, data);
+  }
+
+  @ApiOperation({
+    summary: '获取文章列表',
+  })
+  @ApiBaseResponse(ArticleListEntity)
+  @Get()
+  findAll(
+    @Req() req: { user: IPayload },
+    @Query() queryDto: QueryArticleDto,
+  ): Promise<ArticleListEntity> {
+    return this.articleService.findAll(req.user.userId, queryDto);
   }
 }

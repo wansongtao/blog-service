@@ -163,4 +163,60 @@ export class ArticleService {
       total: results[1],
     };
   }
+
+  async findOne(userId: string, id: number) {
+    const article = await this.prismaService.article.findUnique({
+      where: {
+        id,
+        deleted: false,
+        OR: [
+          { authorId: userId }, // User's own articles
+          { visibility: { not: 'PRIVATE' } }, // Public articles from others
+        ],
+      },
+      select: {
+        id: true,
+        title: true,
+        content: true,
+        visibility: true,
+        coverImage: true,
+        summary: true,
+        theme: true,
+        published: true,
+        featured: true,
+        publishedAt: true,
+        updatedAt: true,
+        commentCount: true,
+        likeCount: true,
+        viewCount: true,
+        categoryId: true,
+        category: {
+          select: {
+            name: true,
+          },
+        },
+        user: {
+          select: {
+            userName: true,
+          },
+        },
+      },
+    });
+
+    if (!article) {
+      throw new BadRequestException('文章不存在');
+    }
+
+    const results = {
+      ...article,
+      categoryName: article.category.name,
+      author: article.user.userName,
+      publishedAt: article.publishedAt?.toISOString(),
+      updatedAt: article.updatedAt.toISOString(),
+    };
+
+    results.user = undefined;
+    results.category = undefined;
+    return results;
+  }
 }

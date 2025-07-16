@@ -4,6 +4,7 @@ import {
   Get,
   Param,
   ParseIntPipe,
+  Patch,
   Post,
   Query,
   Req,
@@ -18,6 +19,7 @@ import { IPayload } from 'src/common/types';
 import { ArticleListEntity } from './entities/article-list.entity';
 import { QueryArticleDto } from './dto/query-article.dto';
 import { ArticleEntity } from './entities/article.entity';
+import { UpdateArticleDto } from './dto/update-article.dto';
 
 @ApiTags('article')
 @ApiBearerAuth()
@@ -62,5 +64,17 @@ export class ArticleController {
     @Param('id', ParseIntPipe) id: number,
   ): Promise<ArticleEntity> {
     return this.articleService.findOne(req.user.userId, id);
+  }
+
+  @ApiOperation({ summary: '编辑文章' })
+  @ApiBaseResponse()
+  @Authority('system:article:edit')
+  @Patch(':id')
+  update(
+    @Req() req: { user: IPayload },
+    @Param('id', ParseIntPipe) id: number,
+    @Body() data: UpdateArticleDto,
+  ) {
+    return this.articleService.update(req.user.userId, id, data);
   }
 }

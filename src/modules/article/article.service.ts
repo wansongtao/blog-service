@@ -5,6 +5,7 @@ import { CreateArticleDto } from './dto/create-article.dto';
 import { QueryArticleDto } from './dto/query-article.dto';
 
 import { Prisma } from '@prisma/client';
+import { UpdateArticleDto } from './dto/update-article.dto';
 
 @Injectable()
 export class ArticleService {
@@ -218,5 +219,77 @@ export class ArticleService {
     results.user = undefined;
     results.category = undefined;
     return results;
+  }
+
+  async update(userId: string, id: number, dto: UpdateArticleDto) {
+    const {
+      title,
+      categoryId,
+      visibility,
+      content,
+      coverImage,
+      summary,
+      theme,
+      published,
+      featured,
+    } = dto;
+
+    const article = await this.prismaService.article.findUnique({
+      where: { id, deleted: false },
+      select: {
+        id: true,
+        authorId: true,
+      },
+    });
+
+    if (!article) {
+      throw new BadRequestException('文章不存在');
+    }
+
+    if (
+      article.authorId !== userId &&
+      (title || content || coverImage || summary || theme || visibility)
+    ) {
+      throw new BadRequestException('无权限修改此文章内容');
+    }
+
+    if (categoryId) {
+      const category = await this.prismaService.category.findUnique({
+        where: {
+          id: categoryId,
+          deleted: false,
+        },
+        select: {
+          id: true,
+        },
+      });
+
+      if (!category?.id) {
+        throw new BadRequestException('分类不存在');
+      }
+    }
+
+    const data: Prisma.ArticleUpdateInput = {
+      title,
+      content,
+      visibility,
+      coverImage,
+      summary,
+      theme,
+      published,
+      featured,
+    };
+    if (categoryId) {
+      data.category = {
+        connect: {
+          id: categoryId,
+        },
+      };
+    }
+
+    await this.prismaService.article.update({
+      where: { id },
+      data,
+    });
   }
 }

@@ -77,4 +77,17 @@ export class ArticleController {
   ) {
     return this.articleService.update(req.user.userId, id, data);
   }
+
+  @ApiOperation({
+    summary: '删除文章',
+  })
+  @ApiBaseResponse()
+  @Authority('system:article:del')
+  @Patch(':id/delete')
+  remove(
+    @Req() req: { user: IPayload },
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.articleService.remove(req.user, id);
+  }
 }

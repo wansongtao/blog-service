@@ -3,13 +3,19 @@ import { PrismaService } from 'nestjs-prisma';
 import { ARTICLE_VISIBILITY } from 'src/common/config/dictionary';
 import { CreateArticleDto } from './dto/create-article.dto';
 import { QueryArticleDto } from './dto/query-article.dto';
+import { ConfigService } from '@nestjs/config';
+import { getBaseConfig } from 'src/common/config';
 
 import { Prisma } from '@prisma/client';
 import { UpdateArticleDto } from './dto/update-article.dto';
+import { IPayload } from 'src/common/types';
 
 @Injectable()
 export class ArticleService {
-  constructor(private readonly prismaService: PrismaService) {}
+  constructor(
+    private readonly prismaService: PrismaService,
+    private readonly configService: ConfigService,
+  ) {}
 
   findArticleVisibility() {
     const keys = Object.keys(
@@ -296,6 +302,32 @@ export class ArticleService {
     await this.prismaService.article.update({
       where: { id },
       data,
+    });
+  }
+
+  async remove(user: IPayload, id: number) {
+    const article = await this.prismaService.article.findUnique({
+      where: { id, deleted: false },
+      select: {
+        id: true,
+        authorId: true,
+      },
+    });
+
+    if (!article) {
+      throw new BadRequestException('文章不存在');
+    }
+
+    if (
+      article.authorId !== user.userId &&
+      user.userName !== getBaseConfig(this.configService).defaultAdmin.username
+    ) {
+      throw new BadRequestException('无权限删除此文章');
+    }
+
+    await this.prismaService.article.update({
+      where: { id },
+      data: { deleted: true },
     });
   }
 }

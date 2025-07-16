@@ -61,6 +61,7 @@ export class ArticleService {
         theme,
         published,
         featured,
+        publishedAt: published ? new Date() : null,
         user: {
           connect: {
             id: userId,
@@ -285,6 +286,11 @@ export class ArticleService {
           id: categoryId,
         },
       };
+    }
+    if (published) {
+      data.publishedAt = new Date();
+    } else {
+      data.publishedAt = null;
     }
 
     await this.prismaService.article.update({

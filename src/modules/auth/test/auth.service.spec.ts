@@ -76,7 +76,7 @@ describe('AuthService Unit Test', () => {
         size: 4,
         noise: 2,
         color: true,
-        ignoreChars: '0o1i',
+        ignoreChars: '0o1il',
         background: '#f0f0f0',
       });
 
@@ -97,7 +97,7 @@ describe('AuthService Unit Test', () => {
           size: 4,
           noise: 2,
           color: true,
-          ignoreChars: '0o1i',
+          ignoreChars: '0o1il',
           background: '#f0f0f0',
         }),
       );

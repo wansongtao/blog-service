@@ -167,6 +167,8 @@ export class ArticleService {
         updatedAt: item.updatedAt.toISOString(),
         categoryName: item.category.name,
         author: item.user.userName,
+        user: undefined, // Exclude user details
+        category: undefined, // Exclude category details
       })),
       total: results[1],
     };

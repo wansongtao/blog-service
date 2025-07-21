@@ -9,7 +9,7 @@ WORKDIR /usr/src/app
 COPY package*.json ./
 
 # 安装依赖，并添加 --no-cache 参数
-RUN npm install --no-cache
+RUN npm install --registry=https://registry.npmmirror.com --no-cache
 
 # 复制源代码
 COPY . .

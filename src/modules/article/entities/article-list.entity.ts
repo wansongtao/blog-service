@@ -8,6 +8,8 @@ export class ArticleList extends OmitType(ArticleEntity, [
   'viewCount',
   'categoryId',
   'theme',
+  'encrypted',
+  'passwordHint',
 ]) {}
 
 export class ArticleListEntity {

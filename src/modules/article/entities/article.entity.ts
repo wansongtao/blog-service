@@ -56,6 +56,12 @@ export class ArticleEntity
   @ApiProperty({ description: '文章评论量', default: 0 })
   commentCount: number;
 
+  @ApiProperty({ description: '是否加密', default: false })
+  encrypted: boolean;
+
+  @ApiProperty({ description: '密码提示', required: false })
+  passwordHint: string;
+
   @ApiProperty({ description: '发布时间(UTC)', required: false })
   publishedAt: string;
 

@@ -79,4 +79,19 @@ export class CreateArticleDto {
     default: false,
   })
   featured?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  @ApiProperty({
+    description: '是否加密文章',
+    required: false,
+    default: false,
+  })
+  encrypted?: boolean;
+
+  @MaxLength(50, { message: '密码提示长度不能超过50个字符' })
+  @ValidateIf((o) => o.passwordHint !== '')
+  @IsOptional()
+  @ApiProperty({ description: '密码提示', required: false })
+  passwordHint?: string;
 }

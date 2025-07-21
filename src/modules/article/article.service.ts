@@ -41,6 +41,8 @@ export class ArticleService {
       theme,
       published,
       featured,
+      encrypted,
+      passwordHint,
     } = data;
 
     const category = await this.prismaService.category.findUnique({
@@ -67,6 +69,8 @@ export class ArticleService {
         theme,
         published,
         featured,
+        encrypted,
+        passwordHint,
         publishedAt: published ? new Date() : null,
         user: {
           connect: {
@@ -96,7 +100,6 @@ export class ArticleService {
       endTime,
     } = queryDto;
 
-    // Base conditions
     const whereCondition: Prisma.ArticleWhereInput = {
       deleted: false,
       ...(keyword && {
@@ -200,6 +203,8 @@ export class ArticleService {
         likeCount: true,
         viewCount: true,
         categoryId: true,
+        encrypted: true,
+        passwordHint: true,
         category: {
           select: {
             name: true,
@@ -241,6 +246,8 @@ export class ArticleService {
       theme,
       published,
       featured,
+      encrypted,
+      passwordHint,
     } = dto;
 
     const article = await this.prismaService.article.findUnique({
@@ -287,6 +294,8 @@ export class ArticleService {
       theme,
       published,
       featured,
+      encrypted,
+      passwordHint,
     };
     if (categoryId) {
       data.category = {

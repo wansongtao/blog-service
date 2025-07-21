@@ -183,6 +183,8 @@ describe('ArticleController', () => {
         likeCount: 10,
         commentCount: 5,
         categoryId: 1,
+        encrypted: false,
+        passwordHint: '',
       };
 
       service.findOne.mockResolvedValue(mockArticle);

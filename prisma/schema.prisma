@@ -159,6 +159,9 @@ model Article {
   commentCount     Int                @default(0) @map("comment_count") @db.Integer
   
   visibility       String             @db.VarChar(30)
+
+  encrypted        Boolean            @default(false)
+  passwordHint     String?            @map("password_hint") @db.VarChar(50)
   
   deleted          Boolean            @default(false)
   createdAt        DateTime           @default(now()) @map("created_at")

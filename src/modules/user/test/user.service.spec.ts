@@ -823,7 +823,19 @@ describe('UserService', () => {
       ).rejects.toThrow('用户不存在');
       expect(mockFindUnique).toHaveBeenCalledWith({
         where: { id: 'nonExistentId', deleted: false },
-        select: { userName: true },
+        select: {
+          userName: true,
+          roleInUser: {
+            select: {
+              roles: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          },
+        },
       });
     });
 
@@ -851,22 +863,33 @@ describe('UserService', () => {
     it('should throw BadRequestException when trying to modify admin roles', async () => {
       // Arrange
       const mockFindUnique = prismaService.user.findUnique as jest.Mock;
-      mockFindUnique.mockResolvedValue({ userName: 'admin' });
+      mockFindUnique.mockResolvedValue({
+        userName: 'admin',
+        roleInUser: [
+          {
+            roles: {
+              id: 1,
+              name: 'admin',
+            },
+          },
+        ],
+      });
 
       configService.get.mockImplementation((key) => {
         if (key === 'DEFAULT_ADMIN_USERNAME') return 'admin';
+        if (key === 'DEFAULT_ADMIN_ROLE') return 'admin';
         return null;
       });
 
       const updateUserDto = {
         nickName: 'Admin',
-        roles: [1, 2],
+        roles: [3, 2],
       };
 
       // Act & Assert
       await expect(
         userService.update('adminId', updateUserDto),
-      ).rejects.toThrow('不能修改超级管理员角色');
+      ).rejects.toThrow('超级管理员必须拥有默认角色');
     });
 
     it('should update user profile without changing roles', async () => {

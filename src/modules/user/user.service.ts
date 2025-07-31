@@ -313,21 +313,36 @@ export class UserService {
   async update(id: string, updateUserDto: UpdateUserDto) {
     const user = await this.prismaService.user.findUnique({
       where: { id, deleted: false },
-      select: { userName: true },
+      select: {
+        userName: true,
+        roleInUser: {
+          select: {
+            roles: {
+              select: { id: true, name: true },
+            },
+          },
+        },
+      },
     });
     if (!user) {
       throw new NotFoundException('用户不存在');
     }
 
-    if (
-      user.userName === getBaseConfig(this.configService).defaultAdmin.username
-    ) {
+    const defaultAdmin = getBaseConfig(this.configService).defaultAdmin;
+    if (user.userName === defaultAdmin.username) {
       if (updateUserDto.disabled) {
         throw new BadRequestException('不能禁用超级管理员');
       }
 
-      if (updateUserDto.roles) {
-        throw new BadRequestException('不能修改超级管理员角色');
+      const { roles } = user.roleInUser.find(
+        (role) => role.roles.name === defaultAdmin.role,
+      );
+      const defaultAdminRoleId = roles.id;
+      if (
+        updateUserDto.roles &&
+        !updateUserDto.roles.includes(defaultAdminRoleId)
+      ) {
+        throw new BadRequestException('超级管理员必须拥有默认角色');
       }
     }
 

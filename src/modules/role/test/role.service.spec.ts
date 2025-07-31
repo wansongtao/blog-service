@@ -2,10 +2,12 @@ import { TestBed } from '@automock/jest';
 import { RoleService } from '../role.service';
 import { QueryRoleDto } from '../dto/query-role.dto';
 import { PrismaService } from 'nestjs-prisma';
+import { ConfigService } from '@nestjs/config';
 
 describe('RoleService', () => {
   let roleService: RoleService;
   let prismaService: jest.Mocked<PrismaService>;
+  let configService: jest.Mocked<ConfigService>;
 
   beforeEach(async () => {
     const { unit, unitRef } = TestBed.create(RoleService)
@@ -17,10 +19,15 @@ describe('RoleService', () => {
           create: jest.fn(),
         },
       })
+      .mock(ConfigService)
+      .using({
+        get: jest.fn(),
+      })
       .compile();
 
     roleService = unit;
     prismaService = unitRef.get(PrismaService);
+    configService = unitRef.get(ConfigService);
   });
 
   it('should be defined', () => {
@@ -314,7 +321,7 @@ describe('RoleService', () => {
       });
 
       await expect(roleService.update(1, updateRoleDto)).rejects.toThrow(
-        '该角色已被用户使用，不能禁用',
+        '默认管理员角色不允许修改',
       );
     });
 
@@ -331,7 +338,11 @@ describe('RoleService', () => {
 
       const mockUpdate = jest.fn().mockResolvedValue(undefined);
       prismaService.role.update = mockUpdate;
-
+      configService.get.mockImplementation((key) => {
+        if (key === 'DEFAULT_ADMIN_USERNAME') return 'admin';
+        if (key === 'DEFAULT_ADMIN_ROLE') return 'admin';
+        return null;
+      });
       await roleService.update(1, updateRoleDto);
 
       expect(mockRedisService.userPermissions).toHaveBeenCalledTimes(2);
@@ -357,7 +368,11 @@ describe('RoleService', () => {
 
       const mockUpdate = jest.fn().mockResolvedValue(undefined);
       prismaService.role.update = mockUpdate;
-
+      configService.get.mockImplementation((key) => {
+        if (key === 'DEFAULT_ADMIN_USERNAME') return 'admin';
+        if (key === 'DEFAULT_ADMIN_ROLE') return 'admin';
+        return null;
+      });
       await roleService.update(1, updateRoleDto);
 
       expect(mockUpdate).toHaveBeenCalledWith({
@@ -383,7 +398,10 @@ describe('RoleService', () => {
 
       const mockUpdate = jest.fn().mockResolvedValue(undefined);
       prismaService.role.update = mockUpdate;
-
+      configService.get.mockImplementation((key) => {
+        if (key === 'DEFAULT_ADMIN_ROLE') return 'admin';
+        return null;
+      });
       await roleService.update(1, updateRoleDto);
 
       expect(mockUpdate).toHaveBeenCalledWith({
@@ -417,7 +435,10 @@ describe('RoleService', () => {
 
       const mockUpdate = jest.fn().mockResolvedValue(undefined);
       prismaService.role.update = mockUpdate;
-
+      configService.get.mockImplementation((key) => {
+        if (key === 'DEFAULT_ADMIN_ROLE') return 'admin';
+        return null;
+      });
       await roleService.update(1, updateRoleDto);
 
       expect(mockUpdate).toHaveBeenCalledWith({

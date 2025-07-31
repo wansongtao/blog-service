@@ -175,6 +175,11 @@ export class RoleService {
       throw new BadRequestException('角色不存在');
     }
 
+    const defaultAdmin = getBaseConfig(this.configService).defaultAdmin;
+    if (roleAndUser.name === defaultAdmin.role) {
+      throw new BadRequestException('默认管理员角色不允许修改');
+    }
+
     if (roleAndUser.roleInUser?.length) {
       if (updateRoleDto.disabled) {
         throw new BadRequestException('该角色已被用户使用，不能禁用');

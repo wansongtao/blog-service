@@ -5,12 +5,16 @@ import { Prisma } from '@prisma/client';
 import { CreateRoleDto } from './dto/create-role.dto';
 import { UpdateRoleDto } from './dto/update-role.dto';
 import { RedisService } from 'src/redis/redis.service';
+import { ConfigService } from '@nestjs/config';
+import { getBaseConfig } from 'src/common/config';
+import { IPayload } from 'src/common/types';
 
 @Injectable()
 export class RoleService {
   constructor(
     private readonly prismaService: PrismaService,
     private readonly redisService: RedisService,
+    private readonly configService: ConfigService,
   ) {}
 
   async findAll(queryRoleDto: QueryRoleDto) {
@@ -251,7 +255,29 @@ export class RoleService {
     });
   }
 
-  findRoleTree() {
+  findRoleTree(user: IPayload) {
+    const adminUserName = getBaseConfig(this.configService).defaultAdmin
+      .username;
+
+    // If the user is not the admin, return only roles assigned to the user
+    if (user.userName !== adminUserName) {
+      return this.prismaService.role.findMany({
+        where: {
+          deleted: false,
+          disabled: false,
+          roleInUser: {
+            some: {
+              userId: user.userId,
+            },
+          },
+        },
+        select: {
+          id: true,
+          name: true,
+        },
+      });
+    }
+
     return this.prismaService.role.findMany({
       where: {
         deleted: false,

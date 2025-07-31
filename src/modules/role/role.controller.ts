@@ -7,6 +7,7 @@ import {
   Patch,
   Post,
   Query,
+  Req,
 } from '@nestjs/common';
 import { RoleService } from './role.service';
 import { QueryRoleDto } from './dto/query-role.dto';
@@ -18,6 +19,7 @@ import { CreateRoleDto } from './dto/create-role.dto';
 import { RoleDetailEntity } from './entities/role-detail.entity';
 import { UpdateRoleDto } from './dto/update-role.dto';
 import { RoleTreeEntity } from './entities/role-tree.entity';
+import { IPayload } from 'src/common/types';
 
 @ApiTags('role')
 @ApiBearerAuth()
@@ -43,8 +45,8 @@ export class RoleController {
   @ApiOperation({ summary: '获取所有有效角色树' })
   @ApiBaseResponse(RoleTreeEntity, 'array')
   @Get('tree')
-  findRoleTree() {
-    return this.roleService.findRoleTree();
+  findRoleTree(@Req() req: { user: IPayload }) {
+    return this.roleService.findRoleTree(req.user);
   }
 
   @ApiOperation({ summary: '获取角色详情' })

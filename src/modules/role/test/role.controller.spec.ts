@@ -171,7 +171,9 @@ describe('RoleController', () => {
     it('should return role tree', async () => {
       service.findRoleTree.mockResolvedValue(mockRoleTree);
 
-      const result = await controller.findRoleTree();
+      const result = await controller.findRoleTree({
+        user: { userId: 'testUserId', userName: 'testUser' },
+      });
 
       expect(service.findRoleTree).toHaveBeenCalled();
       expect(result).toEqual(mockRoleTree);
@@ -182,9 +184,11 @@ describe('RoleController', () => {
         new Error('Failed to fetch role tree'),
       );
 
-      await expect(controller.findRoleTree()).rejects.toThrow(
-        'Failed to fetch role tree',
-      );
+      await expect(
+        controller.findRoleTree({
+          user: { userId: 'testUserId', userName: 'testUser' },
+        }),
+      ).rejects.toThrow('Failed to fetch role tree');
     });
   });
 });

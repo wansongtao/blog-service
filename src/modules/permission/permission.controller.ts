@@ -7,6 +7,7 @@ import {
   Patch,
   Post,
   Query,
+  Req,
 } from '@nestjs/common';
 import { PermissionService } from './permission.service';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -20,6 +21,7 @@ import { Authority } from 'src/common/decorator/authority.decorator';
 import { PermissionEntity } from './entities/permission.entity';
 import { UpdatePermissionDto } from './dto/update-permission.dto';
 import { RemovePermissionDto } from './dto/remove-permission.dto';
+import { IPayload } from 'src/common/types';
 
 @ApiTags('permission')
 @ApiBearerAuth()
@@ -41,8 +43,9 @@ export class PermissionController {
   @Get('tree')
   findTree(
     @Query() queryDto: QueryPermissionTreeDto,
+    @Req() req: { user: IPayload },
   ): Promise<PermissionTreeEntity[]> {
-    return this.permissionService.findTree(queryDto.containButton);
+    return this.permissionService.findTree(queryDto.containButton, req.user);
   }
 
   @ApiOperation({ summary: '创建权限' })

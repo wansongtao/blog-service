@@ -6,12 +6,16 @@ import { Prisma } from '@prisma/client';
 import { CreatePermissionDto } from './dto/create-permission.dto';
 import { UpdatePermissionDto } from './dto/update-permission.dto';
 import { RedisService } from 'src/redis/redis.service';
+import { ConfigService } from '@nestjs/config';
+import { getBaseConfig } from 'src/common/config';
+import { IPayload } from 'src/common/types';
 
 @Injectable()
 export class PermissionService {
   constructor(
     private readonly prismaService: PrismaService,
     private readonly redisService: RedisService,
+    private readonly configService: ConfigService,
   ) {}
 
   async findPermission(userId: string) {
@@ -107,7 +111,7 @@ export class PermissionService {
     return { list, total };
   }
 
-  async findTree(containButton = false) {
+  async findTree(containButton = false, user: IPayload) {
     const whereCondition: Prisma.PermissionWhereInput = {
       deleted: false,
     };
@@ -117,7 +121,7 @@ export class PermissionService {
       };
     }
 
-    const permissions = await this.prismaService.permission.findMany({
+    let permissions = await this.prismaService.permission.findMany({
       where: whereCondition,
       select: {
         id: true,
@@ -125,13 +129,47 @@ export class PermissionService {
         name: true,
         type: true,
         disabled: true,
+        permissionInRole: {
+          select: {
+            roles: {
+              select: {
+                roleInUser: {
+                  select: { userId: true },
+                },
+              },
+            },
+          },
+        },
       },
       orderBy: {
         sort: 'desc',
       },
     });
+    if (!permissions?.length) {
+      return [];
+    }
 
-    const tree = generateMenus(permissions);
+    const defaultAdmin = getBaseConfig(this.configService).defaultAdmin;
+    if (user.userName !== defaultAdmin.username) {
+      // 如果是超级管理员，返回所有权限。否则只保留当前用户有权限的菜单
+      permissions = permissions.filter((item) => {
+        if (item.permissionInRole.length > 0) {
+          return item.permissionInRole.some((role) =>
+            role.roles.roleInUser.some((v) => v.userId === user.userId),
+          );
+        }
+        return true;
+      });
+    }
+
+    const tree = generateMenus(
+      permissions.map((item) => {
+        return {
+          ...item,
+          permissionInRole: undefined, // Remove roles to avoid circular reference
+        };
+      }),
+    );
     return tree;
   }
 

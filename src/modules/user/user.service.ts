@@ -330,7 +330,7 @@ export class UserService {
 
     const defaultAdmin = getBaseConfig(this.configService).defaultAdmin;
 
-    // 非系统管理员，则验证该用户是否拥有传入的角色(用户不能赋予自己没有的角色给其他用户)
+    // 非系统管理员，则验证该用户是否拥有传入的角色(用户不能赋予自己没有的角色给其他用户和自己)
     if (
       userName !== defaultAdmin.username &&
       updateUserDto.roles &&

@@ -246,13 +246,37 @@ export class UserService {
     return { list: userList, total: users[1] };
   }
 
-  async create(createUserDto: CreateUserDto) {
-    const user = await this.prismaService.user.findUnique({
-      where: { userName: createUserDto.userName },
-      select: { id: true },
+  async create(createUserDto: CreateUserDto, userName: string) {
+    const users = await this.prismaService.user.findMany({
+      where: {
+        OR: [{ userName: createUserDto.userName }, { userName: userName }],
+      },
+      select: {
+        userName: true,
+        roleInUser: {
+          select: {
+            roles: {
+              select: { id: true, name: true },
+            },
+          },
+        },
+      },
     });
-    if (user) {
+    if (users.find((v) => v.userName === createUserDto.userName)) {
       throw new BadRequestException('用户已存在');
+    }
+
+    const defaultAdmin = getBaseConfig(this.configService).defaultAdmin;
+    const user = users.find((v) => v.userName === userName);
+    // 非系统管理员，则验证该用户是否拥有传入的角色(用户不能赋予自己没有的角色给新用户)
+    if (
+      userName !== defaultAdmin.username &&
+      createUserDto.roles &&
+      createUserDto.roles.some((roleId) =>
+        user.roleInUser.every((r) => r.roles.id !== roleId),
+      )
+    ) {
+      throw new BadRequestException('该角色不存在');
     }
 
     const password = this.getDefaultPassword();

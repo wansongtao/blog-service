@@ -34,8 +34,8 @@ export class UserController {
   @ApiBaseResponse()
   @Authority('system:user:add')
   @Post()
-  create(@Body() createUserDto: CreateUserDto) {
-    return this.userService.create(createUserDto);
+  create(@Body() createUserDto: CreateUserDto, @Req() req: { user: IPayload }) {
+    return this.userService.create(createUserDto, req.user.userName);
   }
 
   @ApiOperation({

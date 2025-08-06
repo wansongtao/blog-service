@@ -310,7 +310,7 @@ export class UserService {
     };
   }
 
-  async update(id: string, updateUserDto: UpdateUserDto) {
+  async update(id: string, updateUserDto: UpdateUserDto, userName: string) {
     const user = await this.prismaService.user.findUnique({
       where: { id, deleted: false },
       select: {
@@ -329,9 +329,21 @@ export class UserService {
     }
 
     const defaultAdmin = getBaseConfig(this.configService).defaultAdmin;
+
+    // 非系统管理员，则验证该用户是否拥有传入的角色(用户不能赋予自己没有的角色给其他用户)
+    if (
+      userName !== defaultAdmin.username &&
+      updateUserDto.roles &&
+      updateUserDto.roles.some((roleId) =>
+        user.roleInUser.every((r) => r.roles.id !== roleId),
+      )
+    ) {
+      throw new BadRequestException('该角色不存在');
+    }
+
     if (user.userName === defaultAdmin.username) {
       if (updateUserDto.disabled) {
-        throw new BadRequestException('不能禁用超级管理员');
+        throw new BadRequestException('不能禁用系统默认管理员');
       }
 
       const { roles } = user.roleInUser.find(
@@ -342,7 +354,7 @@ export class UserService {
         updateUserDto.roles &&
         !updateUserDto.roles.includes(defaultAdminRoleId)
       ) {
-        throw new BadRequestException('超级管理员必须拥有默认角色');
+        throw new BadRequestException('系统默认管理员必须拥有默认角色');
       }
     }
 

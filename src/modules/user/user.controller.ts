@@ -95,8 +95,12 @@ export class UserController {
   @ApiBaseResponse()
   @Authority('system:user:edit')
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
-    return this.userService.update(id, updateUserDto);
+  update(
+    @Param('id') id: string,
+    @Body() updateUserDto: UpdateUserDto,
+    @Req() req: { user: IPayload },
+  ) {
+    return this.userService.update(id, updateUserDto, req.user.userName);
   }
 
   @ApiOperation({

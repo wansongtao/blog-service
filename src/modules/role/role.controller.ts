@@ -38,8 +38,8 @@ export class RoleController {
   @ApiBaseResponse()
   @Post()
   @Authority('system:role:add')
-  create(@Body() createRoleDto: CreateRoleDto) {
-    return this.roleService.create(createRoleDto);
+  create(@Body() createRoleDto: CreateRoleDto, @Req() req: { user: IPayload }) {
+    return this.roleService.create(createRoleDto, req.user);
   }
 
   @ApiOperation({ summary: '获取所有有效角色树' })
@@ -61,10 +61,11 @@ export class RoleController {
   @Authority('system:role:edit')
   @Patch(':id')
   update(
+    @Req() req: { user: IPayload },
     @Param('id', ParseIntPipe) id: number,
     @Body() updateRoleDto: UpdateRoleDto,
   ) {
-    return this.roleService.update(id, updateRoleDto);
+    return this.roleService.update(id, updateRoleDto, req.user);
   }
 
   @ApiOperation({ summary: '删除角色' })

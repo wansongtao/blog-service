@@ -8,7 +8,6 @@ import { RedisService } from 'src/redis/redis.service';
 import { ConfigService } from '@nestjs/config';
 import { getBaseConfig } from 'src/common/config';
 import { IPayload } from 'src/common/types';
-
 @Injectable()
 export class RoleService {
   constructor(
@@ -16,6 +15,30 @@ export class RoleService {
     private readonly redisService: RedisService,
     private readonly configService: ConfigService,
   ) {}
+
+  async findUserPermission(userId: string) {
+    const permissions = await this.prismaService.$queryRaw<
+      {
+        user_name: string;
+        permissions: number[];
+      }[]
+    >`
+      WITH user_permissions AS (
+        SELECT u.user_name,
+          ARRAY_AGG(DISTINCT pe.id) FILTER (WHERE pe.id IS NOT NULL) AS permissions
+        FROM users u
+          LEFT JOIN role_in_user ur ON u.id = ur.user_id
+          LEFT JOIN roles r ON ur.role_id = r.id AND r.deleted = false AND r.disabled = false
+          LEFT JOIN role_in_permission rp ON r.id = rp.role_id
+          LEFT JOIN permissions pe ON rp.permission_id = pe.id AND pe.deleted = false AND pe.disabled = false
+        WHERE u.id = ${userId} AND u.deleted = false AND u.disabled = false
+        GROUP BY u.user_name
+      )
+      SELECT * FROM user_permissions;
+    `;
+
+    return permissions[0]?.permissions.map((v) => Number(v)) || [];
+  }
 
   async findAll(queryRoleDto: QueryRoleDto) {
     const {
@@ -71,7 +94,7 @@ export class RoleService {
     };
   }
 
-  async create(createRoleDto: CreateRoleDto) {
+  async create(createRoleDto: CreateRoleDto, user) {
     const role = await this.prismaService.role.findUnique({
       where: {
         name: createRoleDto.name,
@@ -90,6 +113,19 @@ export class RoleService {
       disabled: createRoleDto.disabled,
     };
     if (createRoleDto.permissions?.length) {
+      // 非默认管理员角色，赋予角色的权限不能超出自身拥有的权限范围
+      const defaultAdmin = getBaseConfig(this.configService).defaultAdmin;
+      if (defaultAdmin.username !== user.userName) {
+        const userPermissions = await this.findUserPermission(user.userId);
+        if (
+          createRoleDto.permissions.some(
+            (permission) => !userPermissions.includes(permission),
+          )
+        ) {
+          throw new BadRequestException('没有权限进行此操作');
+        }
+      }
+
       data.permissionInRole = {
         create: createRoleDto.permissions.map((permissionId) => ({
           permissionId,
@@ -139,7 +175,7 @@ export class RoleService {
     };
   }
 
-  async update(id: number, updateRoleDto: UpdateRoleDto) {
+  async update(id: number, updateRoleDto: UpdateRoleDto, user: IPayload) {
     if (updateRoleDto.name) {
       const roleInfo = await this.prismaService.role.findUnique({
         where: {
@@ -207,6 +243,20 @@ export class RoleService {
       };
 
       if (updateRoleDto.permissions.length) {
+        // 非默认管理员角色，赋予角色的权限不能超出自身拥有的权限范围
+        if (defaultAdmin.username !== user.userName) {
+          const userPermissions = await this.findUserPermission(
+            user.userId,
+          );
+          if (
+            updateRoleDto.permissions.some((permission) =>
+              !userPermissions.includes(permission),
+            )
+          ) {
+            throw new BadRequestException('没有权限进行此操作');
+          }
+        }
+
         data.permissionInRole.create = updateRoleDto.permissions.map(
           (permissionId) => ({
             permissionId,
